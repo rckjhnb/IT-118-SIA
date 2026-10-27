@@ -1,0 +1,33 @@
+<%- include('partials/header') %>
+
+<div class="thread-page">
+  <div class="thread-head">
+    <a class="back" href="/messages">← All messages</a>
+    <div>
+      <strong><%= conv.post_id ? conv.item_name : 'Admin support' %></strong>
+      <p class="small">
+        with <%= peer.full_name || peer.email %>
+        <% if (peer.course) { %>· <%= peer.course %><% } %>
+        <% if (conv.post_id) { %>· <a href="/posts/<%= conv.post_id %>">View post</a><% } %>
+      </p>
+    </div>
+  </div>
+
+  <section class="thread" data-thread data-conversation="<%= conv.id %>" data-me="<%= me.id %>">
+    <div class="thread-messages" data-messages>
+      <% messages.forEach(function (m) { %>
+        <div class="bubble <%= m.sender_id === me.id ? 'mine' : 'theirs' %>" data-id="<%= m.id %>">
+          <p><%= m.body %></p>
+          <span class="small"><%= m.sender_id === me.id ? 'You' : (m.full_name || m.email) %> · <%= timeAgo(m.created_at) %></span>
+        </div>
+      <% }) %>
+    </div>
+
+    <form method="post" action="/messages/<%= conv.id %>" class="thread-form" data-send>
+      <textarea name="body" rows="2" maxlength="2000" placeholder="Write a message…" required></textarea>
+      <button class="btn" type="submit">Send</button>
+    </form>
+  </section>
+</div>
+
+<%- include('partials/footer') %>

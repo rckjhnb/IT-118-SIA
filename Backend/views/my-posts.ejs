@@ -1,0 +1,21 @@
+<%- include('partials/header') %>
+
+<div class="page-head">
+  <h1>My posts</h1>
+  <p class="lede">Everything you have reported.</p>
+</div>
+
+<% if (!posts.length) { %>
+  <div class="empty">
+    <h2>No posts yet</h2>
+    <p>When you lose or find something, <a href="/posts/new">post it here</a>.</p>
+  </div>
+<% } else { %>
+  <div class="grid">
+    <% posts.forEach(function (post) { %>
+      <%- include('partials/post-card', { post: post }) %>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('partials/footer') %>

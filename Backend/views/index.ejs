@@ -1,0 +1,51 @@
+<%- include('partials/header') %>
+
+<section class="hero">
+  <div>
+    <h1>FoundIT — Campus Lost &amp; Found</h1>
+    <p class="lede">Lost something at Bicol University? Post it, or check what others have found.</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><strong><%= counts.lost %></strong><span>Lost</span></div>
+    <div class="stat"><strong><%= counts.found %></strong><span>Found</span></div>
+    <div class="stat"><strong><%= counts.resolved %></strong><span>Returned</span></div>
+  </div>
+</section>
+
+<form class="filters" method="get" action="/">
+  <div class="seg">
+    <label><input type="radio" name="type" value="all" <%= filters.type === 'all' ? 'checked' : '' %>> All</label>
+    <label><input type="radio" name="type" value="lost" <%= filters.type === 'lost' ? 'checked' : '' %>> Lost</label>
+    <label><input type="radio" name="type" value="found" <%= filters.type === 'found' ? 'checked' : '' %>> Found</label>
+  </div>
+  <input type="search" name="q" value="<%= filters.q %>" placeholder="Search item or description">
+  <select name="category">
+    <option value="">Any category</option>
+    <% CATEGORIES.forEach(function (c) { %>
+      <option value="<%= c %>" <%= filters.category === c ? 'selected' : '' %>><%= c %></option>
+    <% }) %>
+  </select>
+  <select name="location">
+    <option value="">Any location</option>
+    <% LOCATIONS.forEach(function (l) { %>
+      <option value="<%= l %>" <%= filters.location === l ? 'selected' : '' %>><%= l %></option>
+    <% }) %>
+  </select>
+  <label class="check"><input type="checkbox" name="status" value="open" <%= filters.status === 'open' ? 'checked' : '' %>> Open only</label>
+  <button class="btn" type="submit">Filter</button>
+</form>
+
+<% if (!posts.length) { %>
+  <div class="empty">
+    <h2>Nothing here yet</h2>
+    <p>No posts match this filter. <a href="/">Clear filters</a> or <a href="/posts/new">post an item</a>.</p>
+  </div>
+<% } else { %>
+  <div class="grid">
+    <% posts.forEach(function (post) { %>
+      <%- include('partials/post-card', { post: post }) %>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('partials/footer') %>

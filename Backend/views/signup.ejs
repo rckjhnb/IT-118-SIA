@@ -1,0 +1,42 @@
+<%- include('partials/header') %>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1>Create your account</h1>
+    <p class="lede">Only a BU email listed in the student roster can register.</p>
+
+    <% if (error) { %><div class="alert alert-err"><%= error %></div><% } %>
+
+    <form method="post" action="/signup" class="form">
+      <label>BU email
+        <input type="email" name="email" value="<%= values.email || '' %>" placeholder="firstname.lastnameYY@bicol-u.edu.ph" required>
+        <small>Format: <code>juanred.delacruz24@bicol-u.edu.ph</code></small>
+      </label>
+      <label>Student ID
+        <input type="text" name="student_id" value="<%= values.student_id || '' %>" placeholder="2024-00101" required>
+      </label>
+      <label>Password
+        <input type="password" name="password" minlength="8" required>
+        <small>At least 8 characters.</small>
+      </label>
+      <label>Confirm password
+        <input type="password" name="confirm_password" minlength="8" required>
+      </label>
+      <button class="btn" type="submit">Continue</button>
+    </form>
+
+    <p class="small">Already registered? <a href="/login">Log in</a></p>
+  </div>
+
+  <div class="auth-side">
+    <h2>How verification works</h2>
+    <ol class="steps">
+      <li>Your email and Student ID must match the same student record.</li>
+      <li>Your name, course, year and block come from that record — you cannot type them in.</li>
+      <li>We email a 6-digit code to the BU address to prove you own it.</li>
+    </ol>
+    <p class="small">Prototype tip: codes appear at <a href="/dev/outbox">Dev outbox</a>.</p>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

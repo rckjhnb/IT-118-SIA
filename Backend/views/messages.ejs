@@ -1,0 +1,37 @@
+<%- include('partials/header') %>
+
+<div class="page-head split">
+  <div>
+    <h1>Messages</h1>
+    <p class="lede"><%= isAdmin ? 'Every conversation on the system.' : 'Talk to the person who posted the item.' %></p>
+  </div>
+  <% if (!isAdmin) { %>
+    <form method="post" action="/messages/admin">
+      <button class="btn btn-ghost" type="submit">Message an admin</button>
+    </form>
+  <% } %>
+</div>
+
+<% if (!conversations.length) { %>
+  <div class="empty">
+    <h2>No conversations</h2>
+    <p>Open a post and choose “This is mine” or “I found this” to start one.</p>
+  </div>
+<% } else { %>
+  <div class="thread-list">
+    <% conversations.forEach(function (c) { %>
+      <a class="thread-row" href="/messages/<%= c.id %>">
+        <div class="thread-main">
+          <strong><%= c.post_id ? c.item_name : 'Admin support' %></strong>
+          <span class="small"><%= c.last_body ? c.last_body.slice(0, 70) : 'No messages yet' %></span>
+        </div>
+        <div class="thread-side">
+          <% if (c.unread) { %><span class="badge"><%= c.unread %></span><% } %>
+          <span class="small"><%= c.last_at ? timeAgo(c.last_at) : timeAgo(c.created_at) %></span>
+        </div>
+      </a>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('partials/footer') %>

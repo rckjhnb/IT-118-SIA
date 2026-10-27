@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+
+<div class="page-head">
+  <h1>FoundIT</h1>
+  <p class="lede">A campus lost-and-found for Bicol University students.</p>
+</div>
+
+<section class="panel prose">
+  <h2>What it does</h2>
+  <p>Students sign up with their BU email and student ID, verify the address with a one-time code, then post items they lost or found with a photo, the date and time, and the exact campus location. Anyone can message the poster, and an admin sees every new report.</p>
+
+  <h2>How identity is checked</h2>
+  <ul>
+    <li>The email must follow <code>firstname.lastnameYY@bicol-u.edu.ph</code>.</li>
+    <li>The email and student ID must match the same entry in the student roster.</li>
+    <li>Name, course, year and block come from that entry — students never type their own name.</li>
+    <li>A 6-digit code sent to the BU address proves ownership before the account is usable.</li>
+  </ul>
+
+  <h2>Prototype limits</h2>
+  <ul>
+    <li>The roster is seeded demo data, not a registrar feed.</li>
+    <li>Email is recorded in the dev outbox unless SMTP settings are provided.</li>
+    <li>Chat refreshes every few seconds rather than using live sockets.</li>
+  </ul>
+</section>
+
+<%- include('partials/footer') %>

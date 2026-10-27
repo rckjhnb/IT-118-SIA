@@ -1,0 +1,24 @@
+<%- include('partials/header') %>
+
+<div class="auth-wrap single">
+  <div class="auth-card">
+    <h1>Forgot your password?</h1>
+    <p class="lede">Enter your BU email and we will send a 6-digit reset code.</p>
+
+    <% if (sent) { %>
+      <div class="alert alert-ok">If that account exists, a reset code was sent. Check your inbox (or the <a href="/dev/outbox">Dev outbox</a>).</div>
+      <p class="small"><a href="/reset?email=<%= enc(values.email || '') %>">I have my code</a></p>
+    <% } else { %>
+      <form method="post" action="/forgot" class="form">
+        <label>BU email
+          <input type="email" name="email" value="<%= values.email || '' %>" placeholder="firstname.lastnameYY@bicol-u.edu.ph" required autofocus>
+        </label>
+        <button class="btn" type="submit">Send reset code</button>
+      </form>
+    <% } %>
+
+    <p class="small">Remembered it? <a href="/login">Back to log in</a></p>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
