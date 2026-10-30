@@ -2,13 +2,14 @@ const express = require('express');
 const crypto = require('crypto');
 const { db, hashPassword, checkPassword } = require('./db');
 const { sendCode } = require('./mail');
-const { BU_EMAIL, flash, readFlash } = require('./shared');
+const { IS_PROD, BU_EMAIL, CATEGORIES, LOCATIONS, rateLimit } = require('./shared');
 
 const router = express.Router();
+const limit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 
 function newCode(userId, purpose) {
   const code = String(crypto.randomInt(100000, 1000000));
-  db.prepare("UPDATE codes SET used_at = ? WHERE user_id = ? AND purpose = ? AND used_at IS NULL")
+  db.prepare('UPDATE codes SET used_at = ? WHERE user_id = ? AND purpose = ? AND used_at IS NULL')
     .run(new Date().toISOString(), userId, purpose);
   db.prepare('INSERT INTO codes (user_id, purpose, code, expires_at) VALUES (?, ?, ?, ?)')
     .run(userId, purpose, code, new Date(Date.now() + 15 * 60 * 1000).toISOString());
@@ -22,9 +23,9 @@ function readCode(userId, purpose, code) {
     ORDER BY id DESC LIMIT 1
   `).get(userId, purpose, new Date().toISOString());
   if (!row) return { ok: false, reason: 'That code is expired or already used. Request a new one.' };
-  const same = Buffer.from(row.code).length === Buffer.from(code).length
-    && crypto.timingSafeEqual(Buffer.from(row.code), Buffer.from(code));
-  if (!same) return { ok: false, reason: 'That code is not correct.' };
+  const a = Buffer.from(row.code);
+  const b = Buffer.from(code);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { ok: false, reason: 'That code is not correct.' };
   db.prepare('UPDATE codes SET used_at = ? WHERE id = ?').run(new Date().toISOString(), row.id);
   return { ok: true };
 }
@@ -37,19 +38,38 @@ function profileFor(userId) {
   `).get(userId);
 }
 
-router.get('/signup', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  res.render('signup', { title: 'Sign up', error: null, values: {}, flash: readFlash(req) });
+const clean = (v) => String(v || '').trim().toLowerCase();
+
+function startSession(req, res, user, extra = {}) {
+  req.session.regenerate((err) => {
+    if (err) return res.status(500).json({ error: 'Could not start your session.' });
+    req.session.user = { id: user.id, email: user.email, role: user.role };
+    res.json({ ok: true, user: profileFor(user.id), ...extra });
+  });
+}
+
+router.get('/me', (req, res) => {
+  let user = null;
+  let unread = 0;
+  if (req.session.user) {
+    user = profileFor(req.session.user.id);
+    if (!user) req.session.destroy(() => {});
+    else {
+      unread = db.prepare(`
+        SELECT COUNT(*) n FROM messages m JOIN conversations c ON c.id = m.conversation_id
+        WHERE m.read_at IS NULL AND m.sender_id != ? AND (c.owner_id = ? OR c.other_id = ?)
+      `).get(user.id, user.id, user.id).n;
+    }
+  }
+  res.json({ user, unread, config: { categories: CATEGORIES, locations: LOCATIONS, demo: !IS_PROD } });
 });
 
-router.post('/signup', async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+router.post('/signup', limit, async (req, res) => {
+  const email = clean(req.body.email);
   const studentId = String(req.body.student_id || '').trim();
   const password = String(req.body.password || '');
   const confirm = String(req.body.confirm_password || '');
-  const values = { email, student_id: studentId };
-
-  const fail = (error) => res.status(400).render('signup', { title: 'Sign up', error, values, flash: null });
+  const fail = (error) => res.status(400).json({ error });
 
   if (!BU_EMAIL.test(email)) return fail('Use your BU email in the format firstname.lastnameYY@bicol-u.edu.ph.');
   if (!studentId) return fail('Student ID is required.');
@@ -71,114 +91,61 @@ router.post('/signup', async (req, res) => {
     userId = db.prepare("INSERT INTO users (email, student_id, password_hash, role, verified_at, created_at) VALUES (?, ?, ?, 'student', NULL, ?)")
       .run(email, student.student_id, hashPassword(password), new Date().toISOString()).lastInsertRowid;
   }
-
-  const code = newCode(userId, 'verify');
-  await sendCode(email, code, 'verify');
-  flash(req, 'ok', 'We sent a 6-digit code to ' + email + '.');
-  res.redirect('/verify?email=' + encodeURIComponent(email));
+  await sendCode(email, newCode(userId, 'verify'), 'verify');
+  res.json({ ok: true, email });
 });
 
-router.get('/verify', (req, res) => {
-  const email = String(req.query.email || '').trim().toLowerCase();
-  if (!email) return res.redirect('/signup');
-  res.render('verify', { title: 'Verify email', email, error: null, flash: readFlash(req) });
-});
-
-router.post('/verify', (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+router.post('/verify', limit, (req, res) => {
+  const email = clean(req.body.email);
   const code = String(req.body.code || '').trim();
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  if (!user) return res.redirect('/signup');
-
-  if (user.verified_at) {
-    flash(req, 'ok', 'That account is already verified. Log in.');
-    return res.redirect('/login');
-  }
+  if (!user) return res.status(400).json({ error: 'No pending account for that email. Sign up first.' });
+  if (user.verified_at) return res.status(400).json({ error: 'That account is already verified. Log in.' });
 
   const result = readCode(user.id, 'verify', code);
-  if (!result.ok) return res.status(400).render('verify', { title: 'Verify email', email, error: result.reason, flash: null });
+  if (!result.ok) return res.status(400).json({ error: result.reason });
 
   db.prepare('UPDATE users SET verified_at = ? WHERE id = ?').run(new Date().toISOString(), user.id);
-  req.session.regenerate((err) => {
-    if (err) return res.status(500).render('error', { title: 'Error', message: 'Could not start your session.' });
-    const profile = profileFor(user.id);
-    req.session.user = { id: profile.id, email: profile.email, role: profile.role };
-    flash(req, 'ok', 'Email verified. Welcome, ' + profile.full_name + '!');
-    res.redirect('/');
-  });
+  startSession(req, res, user);
 });
 
-router.post('/verify/resend', async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+router.post('/verify/resend', limit, async (req, res) => {
+  const email = clean(req.body.email);
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  if (user && !user.verified_at) {
-    const code = newCode(user.id, 'verify');
-    await sendCode(email, code, 'verify');
-  }
-  flash(req, 'ok', 'If that account is waiting for verification, a new code is on the way.');
-  res.redirect('/verify?email=' + encodeURIComponent(email));
+  if (user && !user.verified_at) await sendCode(email, newCode(user.id, 'verify'), 'verify');
+  res.json({ ok: true });
 });
 
-router.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  res.render('login', { title: 'Log in', error: null, values: {}, next: String(req.query.next || ''), flash: readFlash(req) });
-});
-
-router.post('/login', (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+router.post('/login', limit, (req, res) => {
+  const email = clean(req.body.email);
   const password = String(req.body.password || '');
-  const next = String(req.body.next || '');
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  const fail = () => res.status(401).render('login', { title: 'Log in', error: 'Wrong email or password.', values: { email }, next, flash: null });
 
-  if (!user || !checkPassword(password, user.password_hash)) return fail();
-
-  if (!user.verified_at) {
-    flash(req, 'err', 'Verify your BU email first. We can send a new code.');
-    return res.redirect('/verify?email=' + encodeURIComponent(email));
-  }
-
-  req.session.regenerate((err) => {
-    if (err) return res.status(500).render('error', { title: 'Error', message: 'Could not start your session.' });
-    req.session.user = { id: user.id, email: user.email, role: user.role };
-    const target = next.startsWith('/') && !next.startsWith('//') ? next : '/';
-    res.redirect(target);
-  });
+  if (!user || !checkPassword(password, user.password_hash)) return res.status(401).json({ error: 'Wrong email or password.' });
+  if (!user.verified_at) return res.status(403).json({ error: 'Verify your BU email first. We can send a new code.', needsVerify: true, email });
+  startSession(req, res, user);
 });
 
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
+  req.session.destroy(() => res.json({ ok: true }));
 });
 
-router.get('/forgot', (req, res) => {
-  res.render('forgot', { title: 'Forgot password', error: null, sent: false, values: {}, flash: readFlash(req) });
-});
-
-router.post('/forgot', async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+router.post('/forgot', limit, async (req, res) => {
+  const email = clean(req.body.email);
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  if (user && user.verified_at) {
-    const code = newCode(user.id, 'reset');
-    await sendCode(email, code, 'reset');
-    return res.redirect('/reset?email=' + encodeURIComponent(email));
-  }
-  res.status(200).render('forgot', { title: 'Forgot password', error: null, sent: true, values: { email }, flash: null });
+  if (user && user.verified_at) await sendCode(email, newCode(user.id, 'reset'), 'reset');
+  res.json({ ok: true, email }); // same answer either way so emails can't be probed
 });
 
-router.get('/reset', (req, res) => {
-  const email = String(req.query.email || '').trim().toLowerCase();
-  res.render('reset', { title: 'Reset password', email, error: null, flash: readFlash(req) });
-});
-
-router.post('/reset', (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+router.post('/reset', limit, (req, res) => {
+  const email = clean(req.body.email);
   const code = String(req.body.code || '').trim();
   const password = String(req.body.password || '');
   const confirm = String(req.body.confirm_password || '');
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  const fail = (error) => res.status(400).render('reset', { title: 'Reset password', email, error, flash: null });
+  const fail = (error) => res.status(400).json({ error });
 
-  if (!user) return fail('No account uses that email.');
+  if (!user) return fail('That code is not correct.');
   if (password.length < 8) return fail('Password must be at least 8 characters.');
   if (password !== confirm) return fail('Passwords do not match.');
 
@@ -186,8 +153,7 @@ router.post('/reset', (req, res) => {
   if (!result.ok) return fail(result.reason);
 
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), user.id);
-  flash(req, 'ok', 'Password updated. You can log in now.');
-  res.redirect('/login');
+  res.json({ ok: true });
 });
 
 module.exports = { router, profileFor };

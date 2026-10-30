@@ -3,9 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const { db } = require('./db');
 const { POST_SELECT } = require('./posts');
-const { UPLOAD_DIR, requireAdmin, flash, readFlash } = require('./shared');
+const { UPLOAD_DIR, requireAdmin } = require('./shared');
 
 const router = express.Router();
+const n = (sql) => db.prepare(sql).get().n;
 
 router.get('/admin', requireAdmin, (req, res) => {
   const newPosts = db.prepare(POST_SELECT + ' WHERE p.admin_seen = 0 ORDER BY p.created_at DESC').all();
@@ -15,13 +16,15 @@ router.get('/admin', requireAdmin, (req, res) => {
   }
 
   const stats = {
-    posts: db.prepare('SELECT COUNT(*) n FROM posts').get().n,
-    open_lost: db.prepare("SELECT COUNT(*) n FROM posts WHERE type='lost' AND status='open'").get().n,
-    open_found: db.prepare("SELECT COUNT(*) n FROM posts WHERE type='found' AND status='open'").get().n,
-    resolved: db.prepare("SELECT COUNT(*) n FROM posts WHERE status='resolved'").get().n,
-    users: db.prepare("SELECT COUNT(*) n FROM users WHERE role='student'").get().n,
-    pending: db.prepare('SELECT COUNT(*) n FROM users WHERE verified_at IS NULL').get().n,
-    unread_messages: db.prepare('SELECT COUNT(*) n FROM messages WHERE read_at IS NULL').get().n,
+    posts: n('SELECT COUNT(*) n FROM posts'),
+    open_lost: n("SELECT COUNT(*) n FROM posts WHERE type='lost' AND status='open'"),
+    open_found: n("SELECT COUNT(*) n FROM posts WHERE type='found' AND status='open'"),
+    resolved: n("SELECT COUNT(*) n FROM posts WHERE status='resolved'"),
+    users: n("SELECT COUNT(*) n FROM users WHERE role='student'"),
+    pending: n('SELECT COUNT(*) n FROM users WHERE verified_at IS NULL'),
+    unread_messages: db.prepare(`SELECT COUNT(*) n FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE m.read_at IS NULL AND m.sender_id != ? AND (c.owner_id = ? OR c.other_id = ?)`)
+      .get(req.session.user.id, req.session.user.id, req.session.user.id).n,
   };
 
   const recent = db.prepare(POST_SELECT + ' ORDER BY p.created_at DESC LIMIT 20').all();
@@ -31,30 +34,27 @@ router.get('/admin', requireAdmin, (req, res) => {
     ORDER BY u.role = 'admin' DESC, u.created_at DESC
   `).all();
 
-  res.render('admin', { title: 'Admin dashboard', newPosts, stats, recent, users, flash: readFlash(req) });
+  res.json({ newPosts, stats, recent, users });
 });
 
-router.post('/admin/posts/:id/resolve', requireAdmin, (req, res, next) => {
-  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
-  if (!post) return next();
+router.post('/admin/posts/:id/resolve', requireAdmin, (req, res) => {
+  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(Number(req.params.id));
+  if (!post) return res.status(404).json({ error: 'Post not found.' });
   db.prepare("UPDATE posts SET status = 'resolved' WHERE id = ?").run(post.id);
-  flash(req, 'ok', 'Post #' + post.id + ' marked resolved.');
-  res.redirect('/admin');
+  res.json({ ok: true });
 });
 
-router.post('/admin/posts/:id/remove', requireAdmin, (req, res, next) => {
-  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
-  if (!post) return next();
+router.post('/admin/posts/:id/remove', requireAdmin, (req, res) => {
+  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(Number(req.params.id));
+  if (!post) return res.status(404).json({ error: 'Post not found.' });
 
   const images = db.prepare('SELECT filename FROM post_images WHERE post_id = ?').all(post.id);
   db.prepare('DELETE FROM posts WHERE id = ?').run(post.id);
   for (const image of images) {
     if (image.filename.startsWith('seed-')) continue;
-    fs.rm(path.join(UPLOAD_DIR, image.filename), { force: true }, () => {});
+    fs.rm(path.join(UPLOAD_DIR, path.basename(image.filename)), { force: true }, () => {});
   }
-
-  flash(req, 'ok', 'Post #' + post.id + ' removed.');
-  res.redirect('/admin');
+  res.json({ ok: true });
 });
 
 module.exports = { router };
