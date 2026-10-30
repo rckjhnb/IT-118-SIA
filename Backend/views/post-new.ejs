@@ -1,0 +1,67 @@
+<%- include('partials/header') %>
+
+<div class="page-head">
+  <h1>Post an item</h1>
+  <p class="lede">Your name, year, block and course are filled in from your verified student record.</p>
+</div>
+
+<% if (error) { %><div class="alert alert-err"><%= error %></div><% } %>
+
+<% if (user.student_id) { %>
+<div class="profile-strip">
+  <span><strong><%= user.full_name %></strong></span>
+  <span><%= user.student_id %></span>
+  <span><%= user.course %></span>
+  <span>Year <%= user.year_level %></span>
+  <span>Block <%= user.block %></span>
+</div>
+<% } %>
+
+<form method="post" action="/posts" enctype="multipart/form-data" class="form form-wide">
+  <div class="seg seg-block">
+    <label class="seg-opt"><input type="radio" name="type" value="lost" <%= values.type !== 'found' ? 'checked' : '' %>> <span>I lost an item</span></label>
+    <label class="seg-opt"><input type="radio" name="type" value="found" <%= values.type === 'found' ? 'checked' : '' %>> <span>I found an item</span></label>
+  </div>
+
+  <div class="two-col">
+    <label>Item name
+      <input type="text" name="item_name" value="<%= values.item_name || '' %>" placeholder="Black umbrella" maxlength="120" required>
+    </label>
+    <label>Category
+      <select name="category" required>
+        <option value="">Choose a category</option>
+        <% CATEGORIES.forEach(function (c) { %>
+          <option value="<%= c %>" <%= values.category === c ? 'selected' : '' %>><%= c %></option>
+        <% }) %>
+      </select>
+    </label>
+  </div>
+
+  <label>Description
+    <textarea name="description" rows="4" maxlength="1200" placeholder="Color, brand, marks, contents — details help the owner prove it is theirs." required><%= values.description || '' %></textarea>
+  </label>
+
+  <div class="two-col">
+    <label>Where did it happen?
+      <select name="location" required>
+        <option value="">Choose a campus location</option>
+        <% LOCATIONS.forEach(function (l) { %>
+          <option value="<%= l %>" <%= values.location === l ? 'selected' : '' %>><%= l %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>Date and time
+      <input type="datetime-local" name="occurred_at" value="<%= values.occurred_at || '' %>" required>
+    </label>
+  </div>
+
+  <label>Photo
+    <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp,image/*" data-preview>
+    <small>JPG, PNG or WEBP, up to 5 MB. Optional but it helps a lot.</small>
+  </label>
+  <div class="preview" data-preview-target hidden></div>
+
+  <button class="btn" type="submit">Publish post</button>
+</form>
+
+<%- include('partials/footer') %>

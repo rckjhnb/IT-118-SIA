@@ -1,0 +1,91 @@
+<%- include('partials/header') %>
+
+<div class="page-head split">
+  <div>
+    <h1>Admin dashboard</h1>
+    <p class="lede">New reports, open items and account state.</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><strong><%= stats.open_lost %></strong><span>Lost open</span></div>
+    <div class="stat"><strong><%= stats.open_found %></strong><span>Found open</span></div>
+    <div class="stat"><strong><%= stats.resolved %></strong><span>Resolved</span></div>
+    <div class="stat"><strong><%= stats.users %></strong><span>Students</span></div>
+  </div>
+</div>
+
+<section class="panel">
+  <h2>New since your last visit <% if (newPosts.length) { %><span class="badge"><%= newPosts.length %></span><% } %></h2>
+  <% if (!newPosts.length) { %>
+    <p class="small">No new reports. The badge in the header clears when you open this page.</p>
+  <% } else { %>
+    <ul class="notify-list">
+      <% newPosts.forEach(function (p) { %>
+        <li>
+          <span class="pill pill-<%= p.type %>"><%= p.type.toUpperCase() %></span>
+          <a href="/posts/<%= p.id %>"><%= p.item_name %></a>
+          <span class="small"><%= p.full_name || p.email || 'Student' %> · <%= p.location %> · <%= timeAgo(p.created_at) %></span>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+  <% if (stats.pending) { %>
+    <p class="small"><%= stats.pending %> account(s) waiting for email verification.</p>
+  <% } %>
+  <p class="small"><%= stats.unread_messages %> unread message(s) system-wide · <a href="/messages">Open inbox</a></p>
+</section>
+
+<section class="panel">
+  <h2>Recent posts</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Type</th><th>Item</th><th>Reporter</th><th>Location</th><th>Status</th><th>Posted</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <% recent.forEach(function (p) { %>
+          <tr>
+            <td><%= p.id %></td>
+            <td><span class="pill pill-<%= p.type %>"><%= p.type.toUpperCase() %></span></td>
+            <td><a href="/posts/<%= p.id %>"><%= p.item_name %></a></td>
+            <td class="small"><%= p.full_name || 'Student' %></td>
+            <td class="small"><%= p.location %></td>
+            <td><%= p.status %></td>
+            <td class="small"><%= timeAgo(p.created_at) %></td>
+            <td class="row-actions">
+              <% if (p.status === 'open') { %>
+                <form method="post" action="/admin/posts/<%= p.id %>/resolve"><button class="link-btn" type="submit">Resolve</button></form>
+              <% } %>
+              <form method="post" action="/admin/posts/<%= p.id %>/remove" onsubmit="return confirm('Remove this post permanently?');"><button class="link-btn danger" type="submit">Remove</button></form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Accounts</h2>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Email</th><th>Name</th><th>Student ID</th><th>Course</th><th>Year / Block</th><th>Role</th><th>Verified</th></tr>
+      </thead>
+      <tbody>
+        <% users.forEach(function (u) { %>
+          <tr>
+            <td class="small"><%= u.email %></td>
+            <td><%= u.full_name || '—' %></td>
+            <td class="small"><%= u.student_id || '—' %></td>
+            <td class="small"><%= u.course || '—' %></td>
+            <td class="small"><%= u.year_level ? 'Y' + u.year_level + ' · ' + u.block : '—' %></td>
+            <td><%= u.role %></td>
+            <td><%= u.verified_at ? 'Yes' : 'Pending' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

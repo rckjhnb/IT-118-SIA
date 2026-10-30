@@ -1,0 +1,17 @@
+<a class="card post-card" href="/posts/<%= post.id %>">
+  <div class="card-media">
+    <% if (post.image) { %>
+      <img src="/uploads/<%= post.image %>" alt="<%= post.item_name %>" loading="lazy">
+    <% } else { %>
+      <div class="card-empty">No photo</div>
+    <% } %>
+    <span class="pill pill-<%= post.type %>"><%= post.type.toUpperCase() %></span>
+  </div>
+  <div class="card-body">
+    <h3><%= post.item_name %></h3>
+    <p class="meta"><%= post.category %> · <%= post.location %></p>
+    <p class="meta"><%= fmt(post.occurred_at) %></p>
+    <p class="meta reporter"><%= post.full_name || 'Unknown' %> · <%= post.year_level ? 'Year ' + post.year_level : '' %> <%= post.block || '' %></p>
+    <% if (post.status === 'resolved') { %><span class="tag tag-done">Resolved</span><% } %>
+  </div>
+</a>

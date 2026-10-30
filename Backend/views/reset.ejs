@@ -1,0 +1,30 @@
+<%- include('partials/header') %>
+
+<div class="auth-wrap single">
+  <div class="auth-card">
+    <h1>Set a new password</h1>
+    <p class="lede">Enter the 6-digit code sent to <strong><%= email %></strong>.</p>
+
+    <% if (error) { %><div class="alert alert-err"><%= error %></div><% } %>
+
+    <form method="post" action="/reset" class="form">
+      <label>BU email
+        <input type="email" name="email" value="<%= email %>" required>
+      </label>
+      <label>Reset code
+        <input type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required>
+      </label>
+      <label>New password
+        <input type="password" name="password" minlength="8" required>
+      </label>
+      <label>Confirm new password
+        <input type="password" name="confirm_password" minlength="8" required>
+      </label>
+      <button class="btn" type="submit">Update password</button>
+    </form>
+
+    <p class="small">Code missing? Check the <a href="/dev/outbox">Dev outbox</a> or <a href="/forgot">request another</a>.</p>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,27 @@
+<%- include('partials/header') %>
+
+<div class="page-head split">
+  <div>
+    <h1>Dev outbox</h1>
+    <p class="lede">Every email the system produced. Verification and reset codes land here when SMTP is not configured.</p>
+  </div>
+  <form method="post" action="/dev/outbox/clear"><button class="btn btn-ghost" type="submit">Clear</button></form>
+</div>
+
+<% if (!messages.length) { %>
+  <div class="empty"><h2>Empty</h2><p>Sign up or reset a password and the message will appear here.</p></div>
+<% } else { %>
+  <div class="mail-list">
+    <% messages.forEach(function (m) { %>
+      <article class="mail">
+        <header>
+          <strong><%= m.subject %></strong>
+          <span class="small">to <%= m.to_email %> · <%= fmt(m.created_at) %></span>
+        </header>
+        <pre><%= m.body %></pre>
+      </article>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('partials/footer') %>

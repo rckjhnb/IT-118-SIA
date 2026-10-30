@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title><%= title %> · FoundIT</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/" aria-label="FoundIT home">
+        <span class="brand-mark">F</span>
+        <span class="brand-text">FoundIT<span class="brand-sub">Bicol University</span></span>
+      </a>
+      <nav class="nav">
+        <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Browse</a>
+        <% if (user) { %>
+          <a href="/posts/new" class="<%= currentPath === '/posts/new' ? 'active' : '' %>">Post item</a>
+          <a href="/my-posts" class="<%= currentPath === '/my-posts' ? 'active' : '' %>">My posts</a>
+          <a href="/messages" class="<%= currentPath.startsWith('/messages') ? 'active' : '' %>">
+            Messages <% if (unread) { %><span class="badge"><%= unread %></span><% } %>
+          </a>
+          <% if (user.role === 'admin') { %>
+            <a href="/admin" class="<%= currentPath.startsWith('/admin') ? 'active' : '' %>">Admin</a>
+          <% } %>
+          <span class="who"><%= user.full_name || user.email %></span>
+          <form method="post" action="/logout" class="inline"><button class="link-btn" type="submit">Log out</button></form>
+        <% } else { %>
+          <a href="/login" class="<%= currentPath === '/login' ? 'active' : '' %>">Log in</a>
+          <a href="/signup" class="btn btn-small">Sign up</a>
+        <% } %>
+        <button class="icon-btn" type="button" data-fullscreen aria-pressed="false" title="Toggle fullscreen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5" />
+          </svg>
+          <span data-fullscreen-label>Fullscreen</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <% if (flash) { %>
+    <div class="flash flash-<%= flash.type %>"><%= flash.message %></div>
+  <% } %>
+
+  <main class="wrap">

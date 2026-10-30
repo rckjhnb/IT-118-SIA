@@ -1,0 +1,65 @@
+<%- include('partials/header') %>
+
+<article class="detail">
+  <div class="detail-media">
+    <% if (post.image) { %>
+      <img src="/uploads/<%= post.image %>" alt="<%= post.item_name %>">
+    <% } else { %>
+      <div class="card-empty big">No photo attached</div>
+    <% } %>
+  </div>
+
+  <div class="detail-body">
+    <div class="detail-top">
+      <span class="pill pill-<%= post.type %>"><%= post.type.toUpperCase() %></span>
+      <% if (post.status === 'resolved') { %><span class="tag tag-done">Resolved</span><% } %>
+    </div>
+
+    <h1><%= post.item_name %></h1>
+    <p class="lede"><%= post.description %></p>
+
+    <dl class="facts">
+      <div><dt>Category</dt><dd><%= post.category %></dd></div>
+      <div><dt>Location</dt><dd><%= post.location %></dd></div>
+      <div><dt><%= post.type === 'lost' ? 'Lost at' : 'Found at' %></dt><dd><%= fmt(post.occurred_at) %></dd></div>
+      <div><dt>Posted</dt><dd><%= timeAgo(post.created_at) %></dd></div>
+    </dl>
+
+    <div class="reporter-box">
+      <div>
+        <strong><%= post.full_name || 'Unknown student' %></strong>
+        <p class="small"><%= post.course %><%= post.year_level ? ' · Year ' + post.year_level : '' %><%= post.block ? ' · Block ' + post.block : '' %></p>
+      </div>
+      <div class="reporter-actions">
+        <% if (canContact) { %>
+          <form method="post" action="/posts/<%= post.id %>/contact">
+            <button class="btn" type="submit"><%= post.type === 'lost' ? 'I found this' : 'This is mine' %> — message</button>
+          </form>
+        <% } else if (!me) { %>
+          <a class="btn" href="/login?next=<%= enc('/posts/' + post.id) %>">Log in to message</a>
+        <% } %>
+        <% if (isOwner || (me && me.role === 'admin')) { %>
+          <% if (post.status === 'open') { %>
+            <form method="post" action="/posts/<%= post.id %>/resolve">
+              <button class="btn btn-ghost" type="submit">Mark resolved</button>
+            </form>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (isOwner && messages.length) { %>
+      <div class="thread-list">
+        <h2>People who messaged you</h2>
+        <% messages.forEach(function (m) { %>
+          <a class="thread-row" href="/messages/<%= m.id %>">
+            <span><%= m.email %></span>
+            <span class="small"><%= m.message_count %> message<%= m.message_count === 1 ? '' : 's' %></span>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</article>
+
+<%- include('partials/footer') %>
