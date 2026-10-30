@@ -1,7 +1,6 @@
 # FoundIT: BU Lost & Found
 
 ```
-lost-and-found/
 ├── Frontend/        index.html (the UI), app.js, styles.css
 ├── Backend/         Express + SQLite JSON API (server.js, auth.js, posts.js, chat.js, admin.js, ...)
 ├── package.json
