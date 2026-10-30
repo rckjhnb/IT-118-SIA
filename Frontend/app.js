@@ -95,7 +95,6 @@
     const item = (href, label, extra = '') =>
       `<li class="nav-item"><a class="nav-link${path === href ? ' active' : ''}" href="#${href}">${label}${extra}</a></li>`;
     let h = item('/', 'Browse');
-    if (!S.user || S.user.role !== 'admin') h += item('/contact', 'Contact admin');
     if (S.user) {
       const first = esc((S.user.full_name || S.user.email).split(' ')[0]);
       h += item('/messages', 'Messages', S.unread ? ` <span class="badge rounded-pill text-bg-warning">${S.unread}</span>` : '');
@@ -139,20 +138,6 @@
     } catch (e) { fsLabel.textContent = 'Fullscreen blocked'; }
   });
   document.addEventListener('fullscreenchange', fsSync);
-
-  // Dark mode. The saved choice is applied before first paint by a script in index.html.
-  const themeBtn = document.querySelector('[data-theme-toggle]');
-  const paintTheme = (t) => {
-    themeBtn.innerHTML = t === 'dark' ? '<i class="bi bi-sun-fill"></i> Light mode' : '<i class="bi bi-moon-stars-fill"></i> Dark mode';
-    themeBtn.setAttribute('aria-pressed', String(t === 'dark'));
-  };
-  paintTheme(document.documentElement.getAttribute('data-bs-theme') || 'light');
-  themeBtn.addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-bs-theme', next);
-    try { localStorage.setItem('foundit-theme', next); } catch (e) { /* private mode */ }
-    paintTheme(next);
-  });
 
   // ---------- reusable pieces ----------
   function card(p) {
@@ -201,7 +186,7 @@
           <div class="col-lg-5">
             <label class="form-label" for="f-q">Search</label>
             <div class="input-group">
-              <span class="input-group-text">${icon('search')}</span>
+              <span class="input-group-text bg-white">${icon('search')}</span>
               <input class="form-control" id="f-q" type="search" name="q" placeholder="Umbrella, wallet, keys…" value="${esc(f.q)}">
               <button class="btn btn-primary" type="submit">Search</button>
             </div>
@@ -481,10 +466,15 @@
       </a>`;
     };
     app.innerHTML = `<div class="row justify-content-center"><div class="col-lg-9 col-xl-8">
-      ${pageHead('Messages', d.isAdmin ? 'Messages students sent directly to you.' : 'Conversations about posted items.', d.isAdmin ? '' : `<a class="btn btn-outline-primary" href="#/contact">${icon('headset')} Contact admin</a>`)}
+      ${pageHead('Messages', d.isAdmin ? 'Messages students sent directly to you.' : 'Conversations about posted items.', d.isAdmin ? '' : `<button class="btn btn-outline-primary" type="button" data-admin-dm>${icon('headset')} Message the admin</button>`)}
       ${d.conversations.length ? `<div class="list-group shadow-sm">${d.conversations.map(row).join('')}</div>`
         : `<div class="surface text-center p-5 text-secondary">${d.isAdmin ? 'No student has messaged you yet.' : 'No conversations yet. Open an item and choose “I found this” or “This is mine”.'}</div>`}
     </div></div>`;
+    const dm = $('[data-admin-dm]');
+    if (dm) dm.addEventListener('click', async () => {
+      try { const r = await api('/conversations/admin', { method: 'POST' }); go('/messages/' + r.conversationId); }
+      catch (err) { flash('err', err.message); showFlash(); }
+    });
   }
 
   async function thread({ args: [id] }) {
@@ -495,13 +485,13 @@
     app.innerHTML = `<div class="row justify-content-center"><div class="col-lg-9 col-xl-8">
       <a class="d-inline-block mb-4 text-decoration-none" href="#/messages">${icon('arrow-left')} All messages</a>
       <div class="surface overflow-hidden shadow-sm">
-        <div class="p-4 border-bottom">
+        <div class="p-4 border-bottom bg-white">
           <h1 class="h5 mb-1">${esc(peer.full_name || peer.email)}</h1>
           ${peer.course ? `<div class="small text-secondary">${esc(peer.course)} · Year ${esc(peer.year_level)} · Block ${esc(peer.block)}</div>` : ''}
           <div class="small text-secondary">${conv.item_name ? `About <a href="#/post/${conv.post_id}">${esc(conv.item_name)}</a>` : 'Direct message'}</div>
         </div>
         <div class="thread-box" data-box></div>
-        <form class="p-3 p-md-4 border-top d-flex gap-3 align-items-end">
+        <form class="p-3 p-md-4 border-top bg-white d-flex gap-3 align-items-end">
           <textarea class="form-control" name="body" rows="2" maxlength="2000" placeholder="Write a message…" aria-label="Message" required></textarea>
           <button class="btn btn-primary" type="submit">${icon('send')} Send</button>
         </form>
@@ -604,32 +594,6 @@
         : '<div class="surface text-center p-5 text-secondary">No emails yet.</div>');
   }
 
-  async function contact() {
-    if (S.user && S.user.role === 'admin') {
-      app.innerHTML = narrow('<h1 class="h2 mb-3">Contact admin</h1><p class="text-secondary mb-4">You are the admin. Messages from students arrive in your inbox.</p><a class="btn btn-primary" href="#/messages">Open messages</a>');
-      return;
-    }
-    if (!S.user) {
-      app.innerHTML = narrow(`<h1 class="h2 mb-3">Contact admin</h1>
-        <p class="text-secondary mb-4">Log in with your BU account to message the admin about a post, a problem, or anything else.</p>
-        <div class="d-flex flex-wrap gap-2"><a class="btn btn-primary" href="#/login?next=${encodeURIComponent('/contact')}">Log in</a><a class="btn btn-outline-primary" href="#/signup">Create an account</a></div>`);
-      return;
-    }
-    app.innerHTML = `<div class="row justify-content-center"><div class="col-lg-8 col-xl-7">
-      ${pageHead('Contact admin', 'Report a problem, ask about a post, or request help. The admin replies in your Messages.')}
-      <form class="surface p-4 p-md-5" novalidate>${errBox}
-        <div class="mb-4"><label class="form-label" for="m">Your message</label>
-          <textarea class="form-control" id="m" name="body" rows="6" maxlength="2000" required placeholder="Tell the admin what you need. Include the item name if it is about a post."></textarea>
-          <div class="form-text">Only you and the admin can read this conversation.</div></div>
-        <button class="btn btn-primary btn-lg w-100" type="submit">${icon('send')} Send message</button>
-      </form></div></div>`;
-    submit($('form'), async (fd) => {
-      const r = await api('/conversations/admin', { method: 'POST', body: { body: fd.get('body') } });
-      flash('ok', 'Message sent. The admin will reply here.');
-      go('/messages/' + r.conversationId);
-    });
-  }
-
   async function about() {
     app.innerHTML = `<div class="row justify-content-center"><div class="col-lg-8"><div class="surface p-4 p-md-5">
       <h1 class="h2 mb-4">About FoundIT</h1>
@@ -646,7 +610,7 @@
     [/^\/$/, home], [/^\/login$/, loginView], [/^\/signup$/, signupView], [/^\/verify$/, verifyView],
     [/^\/forgot$/, forgotView], [/^\/reset$/, resetView], [/^\/post\/new$/, postNew], [/^\/post\/(\d+)$/, postShow],
     [/^\/my-posts$/, myPosts], [/^\/messages$/, messages], [/^\/messages\/(\d+)$/, thread],
-    [/^\/admin$/, adminView], [/^\/contact$/, contact], [/^\/about$/, about], [/^\/outbox$/, outbox],
+    [/^\/admin$/, adminView], [/^\/about$/, about], [/^\/outbox$/, outbox],
   ];
 
   let seq = 0;
