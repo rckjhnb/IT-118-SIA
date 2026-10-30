@@ -1,6 +1,6 @@
 const express = require('express');
 const { db } = require('./db');
-const { requireAuth, flash, readFlash, ADMIN_EMAIL } = require('./shared');
+const { requireAuth } = require('./shared');
 
 const router = express.Router();
 
@@ -9,9 +9,10 @@ function conversationFor(id, user) {
     SELECT c.*, p.item_name, p.type, p.status AS post_status
     FROM conversations c LEFT JOIN posts p ON p.id = c.post_id
     WHERE c.id = ?
-  `).get(id);
+  `).get(Number(id));
   if (!conv) return null;
-  const allowed = user.role === 'admin' || conv.owner_id === user.id || conv.other_id === user.id;
+  // Admins only see conversations they are part of (students writing to the admin), never student-to-student ones.
+  const allowed = conv.owner_id === user.id || conv.other_id === user.id;
   return allowed ? conv : null;
 }
 
@@ -20,11 +21,18 @@ function markRead(conversationId, userId) {
     .run(new Date().toISOString(), conversationId, userId);
 }
 
-router.get('/messages', requireAuth, (req, res) => {
+const MESSAGE_SELECT = `
+  SELECT m.id, m.sender_id, m.body, m.created_at, COALESCE(s.full_name, u.email) AS full_name
+  FROM messages m
+  JOIN users u ON u.id = m.sender_id
+  LEFT JOIN students s ON s.student_id = u.student_id
+`;
+
+router.get('/conversations', requireAuth, (req, res) => {
   const me = req.session.user;
   const isAdmin = me.role === 'admin';
   const conversations = db.prepare(`
-    SELECT c.id, c.post_id, c.created_at,
+    SELECT c.id, c.post_id, c.owner_id, c.other_id, c.created_at,
            p.item_name, p.type,
            ou.email AS owner_email, ot.email AS other_email,
            os.full_name AS owner_name, ts.full_name AS other_name,
@@ -37,17 +45,16 @@ router.get('/messages', requireAuth, (req, res) => {
     JOIN users ot ON ot.id = c.other_id
     LEFT JOIN students os ON os.student_id = ou.student_id
     LEFT JOIN students ts ON ts.student_id = ot.student_id
-    WHERE ? = 1 OR c.owner_id = ? OR c.other_id = ?
+    WHERE c.owner_id = ? OR c.other_id = ?
     ORDER BY COALESCE(last_at, c.created_at) DESC
-  `).all(me.id, isAdmin ? 1 : 0, me.id, me.id);
-
-  res.render('messages', { title: 'Messages', conversations, me, isAdmin, flash: readFlash(req) });
+  `).all(me.id, me.id, me.id);
+  res.json({ conversations, isAdmin });
 });
 
-router.post('/messages/admin', requireAuth, (req, res) => {
+router.post('/conversations/admin', requireAuth, (req, res) => {
   const me = req.session.user;
   const admin = db.prepare("SELECT * FROM users WHERE role = 'admin' LIMIT 1").get();
-  if (!admin || admin.id === me.id) return res.redirect('/messages');
+  if (!admin || admin.id === me.id) return res.status(400).json({ error: 'No admin to message.' });
 
   let conv = db.prepare('SELECT * FROM conversations WHERE post_id IS NULL AND owner_id = ? AND other_id = ?').get(me.id, admin.id);
   if (!conv) {
@@ -55,69 +62,44 @@ router.post('/messages/admin', requireAuth, (req, res) => {
       .run(me.id, admin.id, new Date().toISOString()).lastInsertRowid;
     conv = { id };
   }
-  res.redirect('/messages/' + conv.id);
+  res.json({ ok: true, conversationId: conv.id });
 });
 
-router.get('/messages/:id', requireAuth, (req, res, next) => {
-  const conv = conversationFor(req.params.id, req.session.user);
-  if (!conv) return next();
-
-  markRead(conv.id, req.session.user.id);
-
-  const messages = db.prepare(`
-    SELECT m.*, s.full_name, u.email
-    FROM messages m
-    JOIN users u ON u.id = m.sender_id
-    LEFT JOIN students s ON s.student_id = u.student_id
-    WHERE m.conversation_id = ? ORDER BY m.id
-  `).all(conv.id);
-
+router.get('/conversations/:id', requireAuth, (req, res) => {
   const me = req.session.user;
+  const conv = conversationFor(req.params.id, me);
+  if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
+
+  markRead(conv.id, me.id);
+  const messages = db.prepare(MESSAGE_SELECT + ' WHERE m.conversation_id = ? ORDER BY m.id').all(conv.id);
   const peerId = conv.owner_id === me.id ? conv.other_id : conv.owner_id;
   const peer = db.prepare(`
     SELECT u.email, s.full_name, s.course, s.year_level, s.block
     FROM users u LEFT JOIN students s ON s.student_id = u.student_id WHERE u.id = ?
   `).get(peerId);
-
-  res.render('message-thread', { title: 'Conversation', conv, messages, me, peer, ADMIN_EMAIL, flash: readFlash(req) });
+  res.json({ conv, messages, peer });
 });
 
-router.get('/messages/:id/feed', requireAuth, (req, res, next) => {
+router.get('/conversations/:id/feed', requireAuth, (req, res) => {
   const conv = conversationFor(req.params.id, req.session.user);
-  if (!conv) return res.status(404).json({ error: 'Not found' });
-  const after = Number(req.query.after || 0);
-  const messages = db.prepare(`
-    SELECT m.id, m.sender_id, m.body, m.created_at, s.full_name
-    FROM messages m
-    JOIN users u ON u.id = m.sender_id
-    LEFT JOIN students s ON s.student_id = u.student_id
-    WHERE m.conversation_id = ? AND m.id > ? ORDER BY m.id
-  `).all(conv.id, after);
+  if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
+  const after = Number(req.query.after) || 0;
+  const messages = db.prepare(MESSAGE_SELECT + ' WHERE m.conversation_id = ? AND m.id > ? ORDER BY m.id').all(conv.id, after);
   markRead(conv.id, req.session.user.id);
-  res.json({ me: req.session.user.id, messages });
+  res.json({ messages });
 });
 
-router.post('/messages/:id', requireAuth, (req, res, next) => {
+router.post('/conversations/:id/messages', requireAuth, (req, res) => {
   const conv = conversationFor(req.params.id, req.session.user);
-  if (!conv) return next();
+  if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
 
-  const body = String(req.body.body || '').trim();
-  if (!body) {
-    flash(req, 'err', 'Type a message first.');
-    return res.redirect('/messages/' + conv.id);
-  }
-  if (body.length > 2000) {
-    flash(req, 'err', 'Messages are limited to 2000 characters.');
-    return res.redirect('/messages/' + conv.id);
-  }
+  const body = String((req.body || {}).body || '').trim();
+  if (!body) return res.status(400).json({ error: 'Type a message first.' });
+  if (body.length > 2000) return res.status(400).json({ error: 'Messages are limited to 2000 characters.' });
 
-  db.prepare('INSERT INTO messages (conversation_id, sender_id, body, created_at) VALUES (?, ?, ?, ?)')
-    .run(conv.id, req.session.user.id, body, new Date().toISOString());
-
-  if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
-    return res.json({ ok: true });
-  }
-  res.redirect('/messages/' + conv.id + '#bottom');
+  const id = db.prepare('INSERT INTO messages (conversation_id, sender_id, body, created_at) VALUES (?, ?, ?, ?)')
+    .run(conv.id, req.session.user.id, body, new Date().toISOString()).lastInsertRowid;
+  res.status(201).json({ ok: true, id });
 });
 
 module.exports = { router };

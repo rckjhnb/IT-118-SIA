@@ -97,6 +97,10 @@ function checkPassword(password, stored) {
 }
 
 const DEMO_PASSWORD = 'Password123';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || DEMO_PASSWORD;
+if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
+  console.warn('[db] ADMIN_PASSWORD is not set; the seeded admin uses the public demo password.');
+}
 
 const STUDENTS = [
   ['2024-00101', 'Juan Red Dela Cruz', 'juanred.delacruz24@bicol-u.edu.ph', 'BS Information Technology', 2, '2A'],
@@ -166,7 +170,7 @@ function seed() {
   const seedAll = db.transaction(() => {
     for (const row of STUDENTS) insertStudent.run(...row);
 
-    insertUser.run(ADMIN_EMAIL, null, hashPassword(DEMO_PASSWORD), 'admin', now, now);
+    insertUser.run(ADMIN_EMAIL, null, hashPassword(ADMIN_PASSWORD), 'admin', now, now);
     for (const student of STUDENTS.slice(0, 4)) {
       insertUser.run(student[2], student[0], hashPassword(DEMO_PASSWORD), 'student', now, now);
     }
