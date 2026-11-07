@@ -9,7 +9,10 @@
   },
   "scripts": {
     "start": "node Backend/server.js",
-    "dev": "node --watch Backend/server.js"
+    "dev": "node --watch Backend/server.js",
+    "check": "node Backend/check.cjs",
+    "web:dev": "npm --prefix Web run dev",
+    "web:build": "npm --prefix Web run build"
   },
   "dependencies": {
     "better-sqlite3": "^12.0.0",

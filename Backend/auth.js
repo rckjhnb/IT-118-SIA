@@ -1,11 +1,39 @@
 const express = require('express');
 const crypto = require('crypto');
+const { authenticator } = require('otplib');
+const QRCode = require('qrcode');
 const { db, hashPassword, checkPassword } = require('./db');
 const { sendCode } = require('./mail');
 const { IS_PROD, BU_EMAIL, CATEGORIES, LOCATIONS, rateLimit } = require('./shared');
 
 const router = express.Router();
 const limit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+
+authenticator.options = { window: 1 }; // accept the previous/next 30-second step for clock drift
+const APP_NAME = 'FoundIT';
+
+function logEvent(user, action) {
+  db.prepare('INSERT INTO auth_events (user_id, email, role, action, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(user.id, user.email, user.role, action, new Date().toISOString());
+}
+
+// The admin password only proves half the login; this is the half-finished state.
+function pendingAdmin(req) {
+  if (!req.session.pendingAdminId) return null;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.pendingAdminId);
+  return user && user.role === 'admin' ? user : null;
+}
+
+function consumeTotp(user, token) {
+  if (!/^\d{6}$/.test(token)) return { ok: false, error: 'Enter the 6-digit code from your authenticator app.' };
+  // A 6-digit code stays valid for up to 90s (window 1); reject replaying the same one.
+  if (String(user.totp_last_token || '') === token) return { ok: false, error: 'That code was already used. Wait for the next one.' };
+  if (!user.totp_secret || !authenticator.verify({ token, secret: user.totp_secret })) {
+    return { ok: false, error: 'That code is not correct.' };
+  }
+  db.prepare('UPDATE users SET totp_last_token = ? WHERE id = ?').run(token, user.id);
+  return { ok: true };
+}
 
 function newCode(userId, purpose) {
   const code = String(crypto.randomInt(100000, 1000000));
@@ -41,6 +69,7 @@ function profileFor(userId) {
 const clean = (v) => String(v || '').trim().toLowerCase();
 
 function startSession(req, res, user, extra = {}) {
+  logEvent(user, 'login');
   req.session.regenerate((err) => {
     if (err) return res.status(500).json({ error: 'Could not start your session.' });
     req.session.user = { id: user.id, email: user.email, role: user.role };
@@ -123,10 +152,55 @@ router.post('/login', limit, (req, res) => {
 
   if (!user || !checkPassword(password, user.password_hash)) return res.status(401).json({ error: 'Wrong email or password.' });
   if (!user.verified_at) return res.status(403).json({ error: 'Verify your BU email first. We can send a new code.', needsVerify: true, email });
+
+  if (user.role === 'admin') {
+    // Password is only step one. No session until the authenticator code checks out.
+    return req.session.regenerate((err) => {
+      if (err) return res.status(500).json({ error: 'Could not start your session.' });
+      req.session.pendingAdminId = user.id;
+      res.json({ needs2fa: true, needsTotpSetup: !user.totp_enabled });
+    });
+  }
+  startSession(req, res, user);
+});
+
+// First admin login: create the TOTP secret and show the QR for Google Authenticator.
+router.post('/2fa/setup', limit, async (req, res) => {
+  const user = pendingAdmin(req);
+  if (!user) return res.status(401).json({ error: 'Log in with your admin password first.' });
+  if (user.totp_enabled) return res.status(400).json({ error: 'Two-factor authentication is already set up.' });
+
+  const secret = authenticator.generateSecret();
+  db.prepare('UPDATE users SET totp_secret = ? WHERE id = ?').run(secret, user.id);
+  const otpauth = authenticator.keyuri(user.email, APP_NAME, secret);
+  const qr = await QRCode.toDataURL(otpauth);
+  res.json({ secret, otpauth, qr });
+});
+
+router.post('/2fa/enable', limit, (req, res) => {
+  const user = pendingAdmin(req);
+  if (!user) return res.status(401).json({ error: 'Log in with your admin password first.' });
+  if (!user.totp_secret) return res.status(400).json({ error: 'Start the setup first.' });
+
+  const result = consumeTotp(user, String(req.body.code || '').trim());
+  if (!result.ok) return res.status(401).json({ error: result.error });
+
+  db.prepare('UPDATE users SET totp_enabled = 1 WHERE id = ?').run(user.id);
+  startSession(req, res, user);
+});
+
+router.post('/2fa/verify', limit, (req, res) => {
+  const user = pendingAdmin(req);
+  if (!user || !user.totp_enabled) return res.status(401).json({ error: 'Log in with your admin password first.' });
+
+  const result = consumeTotp(user, String(req.body.code || '').trim());
+  if (!result.ok) return res.status(401).json({ error: result.error });
   startSession(req, res, user);
 });
 
 router.post('/logout', (req, res) => {
+  const user = req.session.user && db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
+  if (user) logEvent(user, 'logout');
   req.session.destroy(() => res.json({ ok: true }));
 });
 

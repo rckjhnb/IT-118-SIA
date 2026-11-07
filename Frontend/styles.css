@@ -127,12 +127,20 @@ body { transition: background-color 0.2s ease; }
 .detail-img { width: 100%; border-radius: 1rem; border: 1px solid var(--bu-line); display: block; }
 
 /* Messages */
-.thread-box { height: min(60vh, 540px); overflow-y: auto; background: var(--bu-thread); display: flex; flex-direction: column; gap: 0.85rem; padding: 1.5rem; }
+.thread-box { height: min(60vh, 540px); height: min(60dvh, 540px); overflow-y: auto; background: var(--bu-thread); display: flex; flex-direction: column; gap: 0.85rem; padding: 1.5rem; }
 .bubble { max-width: min(78%, 34rem); padding: 0.7rem 1rem; border-radius: 1.1rem; background: var(--bu-bubble); align-self: flex-start; overflow-wrap: anywhere; }
 .bubble.mine { align-self: flex-end; background: var(--bu-bubble-mine); }
 .bubble p { margin: 0 0 0.25rem; white-space: pre-wrap; }
+.bubble-deleted p { font-style: italic; color: var(--bs-secondary-color); }
+.bubble-meta { display: flex; align-items: center; gap: 0.5rem; }
+.msg-del { border: 0; background: none; padding: 0; color: var(--bs-secondary-color); line-height: 1; }
+.msg-del:hover { color: #b3261e; }
+.qr-code { background: #fff; padding: 0.5rem; border-radius: 0.75rem; border: 1px solid var(--bu-line); }
 .list-group-item-action { padding: 1.1rem 1.25rem; }
 .min-w-0 { min-width: 0; }
+
+/* Toast stack for sign-in/sign-out and admin activity */
+.toast-stack { position: fixed; right: 1rem; bottom: 1rem; z-index: 1080; display: flex; flex-direction: column; gap: 0.5rem; max-width: min(22rem, calc(100vw - 2rem)); }
 
 /* Admin and misc */
 .table > :not(caption) > * > * { padding: 0.85rem 1rem; background-color: transparent; }
@@ -141,3 +149,36 @@ body { transition: background-color 0.2s ease; }
 .preview img { max-width: 260px; border-radius: 0.75rem; border: 1px solid var(--bu-line); }
 .btn[disabled] { cursor: wait; }
 @media (prefers-reduced-motion: reduce) { .post-card, body { transition: none; } .post-card:hover { transform: none; } }
+
+/* ---- Responsive sizing: phone, tablet, desktop ---- */
+
+/* Tablets and small laptops: let the chat breathe without pushing the composer away. */
+@media (max-width: 991.98px) {
+  .thread-box { height: min(64dvh, 520px); padding: 1.15rem; }
+  .bubble { max-width: 82%; }
+}
+
+/* Phones */
+@media (max-width: 575.98px) {
+  .thread-box { height: min(58dvh, 460px); padding: 1rem; gap: 0.7rem; }
+  .bubble { max-width: 90%; padding: 0.6rem 0.85rem; }
+  .composer { flex-direction: column; align-items: stretch !important; }
+  .composer .btn { width: 100%; }
+  .toast-stack { right: 0.75rem; left: 0.75rem; bottom: 0.75rem; max-width: none; }
+  .table > :not(caption) > * > * { padding: 0.65rem 0.6rem; }
+  .brand-sub { display: none; }
+  .site-nav .btn-gold { width: 100%; text-align: center; }
+  .qr-code { width: 170px; height: 170px; }
+}
+
+/* Short landscape (phones turned sideways): keep the thread and nav from eating the screen. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .thread-box { height: 52dvh; min-height: 9rem; }
+  .site-nav { padding-block: 0.4rem; }
+  .brand-mark { width: 34px; height: 34px; font-size: 1rem; }
+}
+
+/* Large desktops: comfortable line lengths. */
+@media (min-width: 1200px) {
+  .thread-box { height: min(62dvh, 620px); }
+}

@@ -28,13 +28,20 @@ router.get('/admin', requireAdmin, (req, res) => {
   };
 
   const recent = db.prepare(POST_SELECT + ' ORDER BY p.created_at DESC LIMIT 20').all();
+  const events = db.prepare('SELECT * FROM auth_events ORDER BY id DESC LIMIT 20').all();
   const users = db.prepare(`
     SELECT u.id, u.email, u.role, u.verified_at, u.created_at, s.student_id, s.full_name, s.course, s.year_level, s.block
     FROM users u LEFT JOIN students s ON s.student_id = u.student_id
     ORDER BY u.role = 'admin' DESC, u.created_at DESC
   `).all();
 
-  res.json({ newPosts, stats, recent, users });
+  res.json({ newPosts, stats, recent, users, events });
+});
+
+// Polled by the dashboard to raise toasts without reloading.
+router.get('/admin/events', requireAdmin, (req, res) => {
+  const after = Number(req.query.after) || 0;
+  res.json({ events: db.prepare('SELECT * FROM auth_events WHERE id > ? ORDER BY id DESC LIMIT 50').all(after) });
 });
 
 router.post('/admin/posts/:id/resolve', requireAdmin, (req, res) => {
