@@ -141,48 +141,39 @@ const STUDENTS = [
 ];
 
 const SEED_POSTS = [
-  ['2024-00101', 'lost', 'Black Umbrella', 'Other', 'Automatic folding umbrella, black with a wooden handle. May have a small tear near one rib.', 'Main Library', '2026-10-24T09:30', 'seed-umbrella.svg', 'open'],
-  ['2024-00102', 'found', 'Student ID - Maria Santos', 'ID / Documents', 'Blue BU ID lace with a student ID card. Name reads Maria Clara Santos. Turned over to the guard on duty.', 'Cafeteria', '2026-10-25T12:15', 'seed-id.svg', 'open'],
-  ['2023-00233', 'lost', 'Silver Wired Earphones', 'Electronics', 'Silver wired earphones with a small red tape mark on the left earpiece. Left at a computer unit in the lab.', 'IT Building', '2026-10-25T15:45', 'seed-earphones.svg', 'open'],
-  ['2024-00102', 'found', 'Brown Leather Wallet', 'Wallet', 'Contains cash, two IDs and a bank card. Kept by the Student Center office for safekeeping.', 'Student Center', '2026-10-26T08:20', 'seed-wallet.svg', 'open'],
-  ['2025-00312', 'lost', 'Scientific Calculator (Casio FX-991)', 'Electronics', 'Casio FX-991 with name stickers on the back. Last used during the math quiz.', 'Engineering Building', '2026-10-26T10:05', 'seed-calculator.svg', 'open'],
-  ['2024-00101', 'found', 'Set of Keys with Blue Keychain', 'Keys', 'Three keys on a blue carabiner keychain with a small superhero charm.', 'Track Oval', '2026-10-26T16:40', 'seed-keys.svg', 'open'],
-  ['2023-00233', 'lost', 'PE Uniform Jacket', 'Uniform / Clothing', 'Maroon PE jacket, size medium, name written on the collar tag.', 'University Gym', '2026-10-26T17:55', 'seed-jacket.svg', 'open'],
-  ['2025-00312', 'found', 'Hardbound Notebook with Formulas', 'Books / School Supplies', 'Green hardbound notebook full of handwritten engineering formulas. No name inside.', 'Main Library', '2026-10-27T07:50', 'seed-notebook.svg', 'resolved'],
+  ['2024-00101', 'lost', 'Black Umbrella', 'Other', 'Automatic folding umbrella, black with a wooden handle. May have a small tear near one rib.', 'Main Library', '2026-10-24T09:30', 'seed-umbrella.jpg', 'open'],
+  ['2024-00102', 'found', 'Student ID', 'ID / Documents', 'Student ID card inside a clear plastic sleeve. Turned over to the guard on duty.', 'Cafeteria', '2026-10-25T12:15', 'seed-id.jpg', 'open'],
+  ['2023-00233', 'lost', 'Silver Wired Earphones', 'Electronics', 'Silver wired earphones with a chrome inline remote, left at a computer unit in the lab.', 'IT Building', '2026-10-25T15:45', 'seed-earphones.jpg', 'open'],
+  ['2024-00102', 'found', 'Brown Leather Wallet', 'Wallet', 'Brown leather bi-fold wallet with several card slots. Kept by the Student Center office for safekeeping.', 'Student Center', '2026-10-26T08:20', 'seed-wallet.jpg', 'open'],
+  ['2025-00312', 'lost', 'Scientific Calculator (Casio FX-991EX)', 'Electronics', 'Black Casio FX-991EX ClassWiz calculator. Last used during the math quiz.', 'Engineering Building', '2026-10-26T10:05', 'seed-calculator.jpg', 'open'],
+  ['2024-00101', 'found', 'Set of Keys with Blue Keychain', 'Keys', 'Single key on a blue keychain with translucent blue charms and a braided cord.', 'Track Oval', '2026-10-26T16:40', 'seed-keys.jpg', 'open'],
+  ['2023-00233', 'lost', 'PE Uniform Shirt', 'Uniform / Clothing', 'White PATFIT PE shirt with blue and orange sleeves. Left hanging at the University Gym.', 'University Gym', '2026-10-26T17:55', 'seed-jacket.jpg', 'open'],
 ];
 
-const SEED_IMAGES = {
-  'seed-umbrella.svg': ['#2b2b34', 'M12 4a9 9 0 0 0-9 9h18a9 9 0 0 0-9-9zm0 0v16a2 2 0 0 0 4 0'],
-  'seed-id.svg': ['#1f4e79', 'M4 5h16v14H4zM7 9h6v6H7zM15 9h3v2h-3z'],
-  'seed-earphones.svg': ['#8a8f98', 'M4 14a8 8 0 0 1 16 0M4 14v4M20 14v4'],
-  'seed-wallet.svg': ['#7b4b2a', 'M3 7h18v12H3zM3 9h18M16 13h4'],
-  'seed-calculator.svg': ['#3a3f4b', 'M6 3h12v18H6zM8 6h8v4H8zM8 13h2v2H8zM12 13h2v2h-2zM16 13h0'],
-  'seed-keys.svg': ['#b08d33', 'M8 12a3 3 0 1 1 6 0 3 3 0 0 1-6 0zM14 12h6M17 12v3'],
-  'seed-jacket.svg': ['#7a1f2b', 'M9 3l3 3 3-3 4 4-2 3v10H7V10L5 7z'],
-  'seed-notebook.svg': ['#2f6b3f', 'M5 3h14v18H5zM8 3v18'],
-};
+const SEED_IMAGE_DIR = path.join(__dirname, 'seed-images');
 
-function writeSeedImages() {
-  for (const [file, [bg, d]] of Object.entries(SEED_IMAGES)) {
+function copySeedPhotos() {
+  if (!fs.existsSync(SEED_IMAGE_DIR)) return;
+  for (const file of fs.readdirSync(SEED_IMAGE_DIR)) {
     const target = path.join(UPLOAD_DIR, file);
-    if (fs.existsSync(target)) continue;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 240" width="360" height="240">
-<rect width="360" height="240" fill="#f4f1ec"/>
-<rect width="360" height="240" fill="${bg}" opacity="0.08"/>
-<g transform="translate(84 36) scale(8)" fill="none" stroke="${bg}" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-<path d="${d}"/>
-</g>
-<text x="180" y="222" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#8a8578">${file.replace('seed-', '').replace('.svg', '')} placeholder</text>
-</svg>`;
-    fs.writeFileSync(target, svg);
+    if (!fs.existsSync(target)) fs.copyFileSync(path.join(SEED_IMAGE_DIR, file), target);
   }
 }
+
+copySeedPhotos();
+
+// Upgrade databases seeded before real photos existed.
+db.prepare("UPDATE post_images SET filename = replace(filename, '.svg', '.jpg') WHERE filename LIKE 'seed-%.svg'").run();
+db.prepare("DELETE FROM posts WHERE item_name LIKE 'Hardbound Notebook%'").run();
+const rewordSeedPost = db.prepare(
+  'UPDATE posts SET item_name = ?, description = ? WHERE id IN (SELECT post_id FROM post_images WHERE filename = ?)',
+);
+for (const [, , item, , description, , , image] of SEED_POSTS) rewordSeedPost.run(item, description, image);
 
 function seed() {
   const studentCount = db.prepare('SELECT COUNT(*) AS n FROM students').get().n;
   if (studentCount > 0) return;
 
-  writeSeedImages();
   const now = new Date().toISOString();
 
   const insertStudent = db.prepare('INSERT INTO students (student_id, full_name, email, course, year_level, block) VALUES (?, ?, ?, ?, ?, ?)');
