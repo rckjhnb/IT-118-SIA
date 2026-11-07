@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-cream: #fcfafa;
+  --color-paper: #ffffff;
+  --color-sunken: #f5f2fc;
+  --color-bu: #5b20ff;
+  --color-bu-dark: #ffffff; /* ink on primary fills */
+  --color-gold: #5b20ff;
+  --color-gold-light: #7a46ff;
+  --color-line: #e9e5f4;
+  --color-body: #3a3646;
+  --color-heading: #1f1f28;
+  --color-muted: #6b6880;
+  --color-ground: #fcfafa;
+  --color-ink: #eceaf6; /* admin foreground */
+  --color-accent: #c8b4ff;
+  --color-orchid: #5b20ff;
+  --color-orchid-deep: #5b20ff;
+  --color-orchid-dark: #1f1f28;
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    background-color: var(--color-cream);
+    background-image:
+      radial-gradient(900px 600px at 0% 0%, rgba(200, 180, 255, 0.28), transparent 60%),
+      radial-gradient(800px 560px at 100% 100%, rgba(91, 32, 255, 0.08), transparent 62%);
+    background-attachment: fixed;
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+}
+
+/* Dark mode: token overrides carry every paper/line/body surface with them. */
+html.dark {
+  color-scheme: dark;
+  --color-cream: #0f0d18;
+  --color-paper: #191527;
+  --color-sunken: #221d33;
+  --color-line: rgba(255, 255, 255, 0.1);
+  --color-body: #d9d4ea;
+  --color-heading: #f5f2ff;
+  --color-muted: #a09bb8;
+  --color-bu: #a78bfa;
+  --color-accent: #c8b4ff;
+  --color-ground: #0f0d18;
+}
+
+html.dark body {
+  background-image:
+    radial-gradient(900px 600px at 0% 0%, rgba(167, 139, 250, 0.14), transparent 60%),
+    radial-gradient(800px 560px at 100% 100%, rgba(91, 32, 255, 0.16), transparent 62%);
+}
+
+html.dark .home-shell {
+  background:
+    radial-gradient(1100px 520px at 8% -10%, rgba(124, 58, 237, 0.28), transparent 60%),
+    radial-gradient(900px 480px at 92% 0%, rgba(200, 180, 255, 0.1), transparent 65%),
+    linear-gradient(160deg, #14101f 0%, #0f0d18 60%, #0b0a13 100%);
+}
+
+/* Admin stays a dark console; re-hued to violet-black to match the light public app. */
+.admin-shell {
+  background:
+    radial-gradient(1100px 520px at 8% -10%, rgba(91, 32, 255, 0.28), transparent 60%),
+    radial-gradient(900px 480px at 92% 0%, rgba(200, 180, 255, 0.12), transparent 65%),
+    linear-gradient(145deg, #1f1b2e 0%, #14111f 72%);
+  color: var(--color-ink);
+}
+
+.admin-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px);
+}
+
+.admin-chrome {
+  background: rgba(26, 23, 40, 0.92);
+}
+
+/* Auth pages reuse the admin console surface and tokens. */
+.auth-shell {
+  background:
+    radial-gradient(1100px 520px at 8% -10%, rgba(91, 32, 255, 0.28), transparent 60%),
+    radial-gradient(900px 480px at 92% 0%, rgba(200, 180, 255, 0.12), transparent 65%),
+    linear-gradient(145deg, #1f1b2e 0%, #14111f 72%);
+  color: var(--color-ink);
+
+  --color-paper: rgba(255, 255, 255, 0.05);
+  --color-line: rgba(255, 255, 255, 0.1);
+  --color-body: #eceaf6;
+  --color-heading: #ffffff;
+  --color-muted: #a9a4be;
+  --color-sunken: rgba(255, 255, 255, 0.06);
+  --color-bu: #c8b4ff; /* links and wordmark, readable on the dark shell */
+}
+
+.auth-shell input,
+.auth-shell select,
+.auth-shell textarea {
+  color-scheme: dark;
+}
+
+/* Homepage: the admin gradient's shape, lifted to a light ground. */
+.home-shell {
+  background:
+    radial-gradient(1100px 520px at 8% -10%, rgba(91, 32, 255, 0.2), transparent 60%),
+    radial-gradient(900px 480px at 92% 0%, rgba(200, 180, 255, 0.38), transparent 65%),
+    linear-gradient(160deg, #faf8ff 0%, #eee8fb 60%, #e7e0f7 100%);
+}
+
+.fade-up {
+  animation: fade-up 0.35s ease-out both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Thin scrollbars inside the chat thread */
+.thread-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.thread-scroll::-webkit-scrollbar-thumb {
+  background: rgba(91, 32, 255, 0.25);
+  border-radius: 999px;
+}

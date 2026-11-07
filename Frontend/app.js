@@ -54,6 +54,25 @@
     pending = null;
   }
 
+  // Small floating notification, used for sign-in/sign-out and admin activity.
+  function toast(title, body) {
+    let stack = document.getElementById('toast-stack');
+    if (!stack) {
+      stack = document.createElement('div');
+      stack.id = 'toast-stack';
+      stack.className = 'toast-stack';
+      document.body.appendChild(stack);
+    }
+    const el = document.createElement('div');
+    el.className = 'toast show align-items-center border-0 shadow';
+    el.setAttribute('role', 'status');
+    el.innerHTML = `<div class="d-flex"><div class="toast-body"><strong class="d-block">${esc(title)}</strong>${esc(body)}</div>
+      <button type="button" class="btn-close me-2 m-auto" data-toast-close aria-label="Close"></button></div>`;
+    el.querySelector('[data-toast-close]').addEventListener('click', () => el.remove());
+    stack.appendChild(el);
+    setTimeout(() => el.remove(), 6000);
+  }
+
   function go(path) {
     if (location.hash === '#' + path) route();
     else location.hash = path;
@@ -119,6 +138,7 @@
     if (e.target.closest('[data-logout]')) {
       await api('/logout', { method: 'POST' }).catch(() => {});
       S.user = null; S.unread = 0;
+      toast('Signed out', 'You have logged out of FoundIT.');
       go('/');
     }
   });
@@ -248,9 +268,8 @@
     submit($('form'), async (fd) => {
       try {
         const r = await api('/login', { method: 'POST', body: obj(fd) });
-        S.user = r.user;
-        flash('ok', 'Welcome back, ' + (r.user.full_name || r.user.email) + '.');
-        go(next.startsWith('/') && !next.startsWith('//') ? next : '/');
+        if (r.needs2fa || r.needsTotpSetup) return twoFactorView(Boolean(r.needsTotpSetup), next);
+        await afterLogin(r, next);
       } catch (err) {
         if (err.data && err.data.needsVerify) { flash('err', err.message); return go('/verify?email=' + encodeURIComponent(err.data.email)); }
         throw err;
@@ -286,6 +305,37 @@
   }
 
   const narrow = (inner) => `<div class="row justify-content-center"><div class="col-md-8 col-lg-6 col-xl-5"><div class="surface p-4 p-md-5">${inner}</div></div></div>`;
+
+  const safeNext = (next) => (next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+
+  async function afterLogin(r, next) {
+    S.user = r.user;
+    const who = r.user.full_name || r.user.email;
+    flash('ok', 'Welcome back, ' + who + '.');
+    toast('Logged in', who + ' signed in.');
+    go(safeNext(next));
+  }
+
+  // Second step for admins: set up or verify a TOTP authenticator (Google Authenticator, Authy, ...).
+  async function twoFactorView(setup, next) {
+    const info = setup ? await api('/2fa/setup', { method: 'POST' }) : null;
+    app.innerHTML = narrow(`<h1 class="h2 mb-2">Admin two-factor</h1>
+      <p class="text-secondary mb-4">${setup ? 'Scan this with Google Authenticator, then enter the 6-digit code it shows.' : 'Enter the 6-digit code from your authenticator app.'}</p>
+      ${info ? `<div class="text-center mb-4">
+        <img class="qr-code" src="${esc(info.qr)}" alt="QR code to add FoundIT to Google Authenticator" width="200" height="200">
+        <div class="small text-secondary mt-2">Cannot scan? Enter this key manually:</div>
+        <code class="d-inline-block text-break small">${esc(info.secret)}</code></div>` : ''}
+      <form novalidate>${errBox}
+        <div class="mb-4"><label class="form-label" for="code">Authenticator code</label>
+          <input class="form-control form-control-lg text-center" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required autofocus></div>
+        <button class="btn btn-primary w-100 btn-lg" type="submit">${setup ? 'Enable 2FA and log in' : 'Verify and log in'}</button>
+      </form>
+      <p class="small text-secondary text-center mt-4 mb-0">Codes change every 30 seconds. If you lose the device, an admin with database access must reset your 2FA.</p>`);
+    submit($('form'), async (fd) => {
+      const r = await api(setup ? '/2fa/enable' : '/2fa/verify', { method: 'POST', body: { code: String(fd.get('code') || '').trim() } });
+      await afterLogin(r, next);
+    });
+  }
 
   async function verifyView({ q }) {
     const email = (q.get('email') || '').toLowerCase();
@@ -491,7 +541,7 @@
           <div class="small text-secondary">${conv.item_name ? `About <a href="#/post/${conv.post_id}">${esc(conv.item_name)}</a>` : 'Direct message'}</div>
         </div>
         <div class="thread-box" data-box></div>
-        <form class="p-3 p-md-4 border-top bg-white d-flex gap-3 align-items-end">
+        <form class="composer p-3 p-md-4 border-top bg-white d-flex gap-3 align-items-end">
           <textarea class="form-control" name="body" rows="2" maxlength="2000" placeholder="Write a message…" aria-label="Message" required></textarea>
           <button class="btn btn-primary" type="submit">${icon('send')} Send</button>
         </form>
@@ -505,15 +555,35 @@
     const bubble = (m) => {
       const mine = m.sender_id === me;
       const w = document.createElement('div');
-      w.className = 'bubble' + (mine ? ' mine' : '');
+      w.className = 'bubble' + (mine ? ' mine' : '') + (m.deleted_at ? ' bubble-deleted' : '');
       w.dataset.id = m.id;
       const p = document.createElement('p');
-      p.textContent = m.body;
-      const meta = document.createElement('span');
-      meta.className = 'small text-secondary';
-      meta.textContent = (mine ? 'You' : m.full_name || 'Student') + ' · ' + fmtShort(m.created_at);
+      p.textContent = m.deleted_at ? 'This message was deleted' : m.body;
+      const meta = document.createElement('div');
+      meta.className = 'bubble-meta small text-secondary';
+      const stamp = document.createElement('span');
+      stamp.textContent = (mine ? 'You' : m.full_name || 'Student') + ' · ' + fmtShort(m.created_at);
+      meta.appendChild(stamp);
+      if (!m.deleted_at && (mine || S.user.role === 'admin')) {
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'msg-del';
+        del.dataset.del = m.id;
+        del.title = 'Delete message';
+        del.setAttribute('aria-label', 'Delete message');
+        del.innerHTML = icon('trash');
+        meta.appendChild(del);
+      }
       w.append(p, meta);
       return w;
+    };
+    const markDeleted = (id) => {
+      const w = box.querySelector(`[data-id="${id}"]`);
+      if (!w || w.classList.contains('bubble-deleted')) return;
+      w.classList.add('bubble-deleted');
+      w.querySelector('p').textContent = 'This message was deleted';
+      const del = w.querySelector('[data-del]');
+      if (del) del.remove();
     };
     const add = (list) => {
       let added = false;
@@ -530,12 +600,26 @@
     async function poll() {
       if (busy || document.hidden) return;
       busy = true;
-      try { add((await api(`/conversations/${id}/feed?after=${lastId}`)).messages); }
+      try {
+        const r = await api(`/conversations/${id}/feed?after=${lastId}`);
+        add(r.messages);
+        for (const did of r.deleted || []) markDeleted(did);
+      }
       catch (e) { /* offline for a moment; next tick retries */ }
       finally { busy = false; }
     }
     const timer = setInterval(poll, 3000);
     cleanup = () => clearInterval(timer);
+
+    box.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-del]');
+      if (!btn) return;
+      if (!confirm('Delete this message? Both of you will see "This message was deleted".')) return;
+      try {
+        await api(`/conversations/${id}/messages/${btn.dataset.del}`, { method: 'DELETE' });
+        markDeleted(Number(btn.dataset.del));
+      } catch (err) { flash('err', err.message); showFlash(); }
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -555,11 +639,16 @@
     const s = d.stats;
     const stat = (n, l) => `<div class="col"><div class="surface p-4 text-center h-100"><div class="h2 mb-1 text-primary">${n}</div><div class="small text-secondary">${l}</div></div></div>`;
     const panel = (title, inner) => `<section class="surface section-gap overflow-hidden"><h2 class="h5 p-4 mb-0 border-bottom">${title}</h2>${inner}</section>`;
+    const eventRow = (ev) => `<tr><td class="text-nowrap">${fmtShort(ev.created_at)}</td><td>${esc(ev.email)}</td><td>${ev.role}</td><td><span class="badge ${ev.action === 'login' ? 'text-bg-success' : 'text-bg-secondary'}">${ev.action === 'login' ? 'In' : 'Out'}</span></td></tr>`;
     app.innerHTML = pageHead('Admin dashboard', 'Moderate posts and review accounts.') +
       `<div class="row row-cols-2 row-cols-md-4 g-4 section-gap">${stat(s.posts, 'Posts')}${stat(s.open_lost, 'Open lost')}${stat(s.open_found, 'Open found')}${stat(s.resolved, 'Resolved')}${stat(s.users, 'Students')}${stat(s.pending, 'Unverified')}${stat(s.unread_messages, 'Unread messages')}</div>` +
       panel('New since your last visit', d.newPosts.length
         ? `<div class="list-group list-group-flush">${d.newPosts.map((p) => `<a class="list-group-item list-group-item-action d-flex align-items-center gap-3 p-3 px-4" href="#/post/${p.id}">${badge(p.type)}<span class="fw-bold">${esc(p.item_name)}</span><span class="small text-secondary ms-auto">${esc(p.full_name || 'unknown')} · ${ago(p.created_at)}</span></a>`).join('')}</div>`
         : '<p class="p-4 mb-0 text-secondary">Nothing new.</p>') +
+      panel('Sign-in activity', `<div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead><tr><th>When</th><th>Account</th><th>Role</th><th>Action</th></tr></thead>
+        <tbody data-events>${d.events.map(eventRow).join('')}</tbody>
+      </table></div>`) +
       panel('Recent posts', `<div class="table-responsive"><table class="table table-hover align-middle mb-0">
         <thead><tr><th>Item</th><th>Type</th><th>Posted by</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
         <tbody>${d.recent.map((p) => `<tr><td><a href="#/post/${p.id}">${esc(p.item_name)}</a></td><td>${badge(p.type)}</td><td>${esc(p.full_name || '')}</td><td>${p.status}</td>
@@ -570,7 +659,22 @@
         <tbody>${d.users.map((u) => `<tr><td>${esc(u.full_name || '—')}</td><td>${esc(u.email)}</td><td>${u.role}</td><td>${esc(u.course || '')}</td><td>${u.verified_at ? 'Yes' : 'Pending'}</td></tr>`).join('')}</tbody>
       </table></div>`);
     app.addEventListener('click', onAdminClick);
-    cleanup = () => app.removeEventListener('click', onAdminClick);
+    let lastEvent = d.events[0] ? d.events[0].id : 0;
+    const timer = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const r = await api('/admin/events?after=' + lastEvent);
+        if (!r.events.length) return;
+        lastEvent = Math.max(lastEvent, ...r.events.map((e) => e.id));
+        const tbody = $('[data-events]');
+        // Oldest first, so toasts read in the order things happened.
+        for (const ev of r.events.slice().reverse()) {
+          toast(ev.action === 'login' ? 'User logged in' : 'User logged out', ev.email + (ev.role === 'admin' ? ' (admin)' : ''));
+          if (tbody) tbody.insertAdjacentHTML('afterbegin', eventRow(ev));
+        }
+      } catch (e) { /* next tick retries */ }
+    }, 5000);
+    cleanup = () => { app.removeEventListener('click', onAdminClick); clearInterval(timer); };
   }
 
   async function onAdminClick(e) {

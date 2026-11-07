@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 200" role="img" aria-label="FoundIT">
+  <defs>
+    <linearGradient id="word" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="780" y2="0">
+      <stop offset="0" stop-color="#2A1FBF" />
+      <stop offset="0.5" stop-color="#1E4FE0" />
+      <stop offset="1" stop-color="#2196FF" />
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(2 0) scale(1.45)">
+    <circle cx="54" cy="56" r="42" fill="none" stroke="#FF6B4A" stroke-width="14" />
+    <path d="M32 20h64v18H62v14h42v22H62v30H32z" fill="url(#word)" />
+    <path d="M41 104h20l-4 20H45z" fill="url(#word)" />
+    <g fill="none" stroke="#FF6B4A" stroke-width="7" stroke-linecap="round">
+      <path d="M36 104q22 9 44 0" />
+      <path d="M38 113q20 8 40 0" />
+      <path d="M41 122q17 7 34 0" />
+    </g>
+  </g>
+
+  <g fill="none" stroke="url(#word)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="250" cy="105" r="36" />
+    <path d="M318 78v30a30 30 0 0 0 60 0V78" />
+    <path d="M408 160v-52a30 30 0 0 1 60 0v52" />
+    <circle cx="530" cy="118" r="32" />
+    <path d="M584 55v105" />
+    <path d="M648 50v110" />
+    <path d="M678 50h100" />
+    <path d="M728 50v110" />
+  </g>
+</svg>

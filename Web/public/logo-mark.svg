@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 136" role="img" aria-label="FoundIT">
+  <defs>
+    <linearGradient id="bulb" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2A1FBF" />
+      <stop offset="1" stop-color="#1E7BFF" />
+    </linearGradient>
+  </defs>
+  <circle cx="54" cy="56" r="42" fill="none" stroke="#FF6B4A" stroke-width="14" />
+  <path d="M32 20h64v18H62v14h42v22H62v30H32z" fill="url(#bulb)" />
+  <path d="M41 104h20l-4 20H45z" fill="url(#bulb)" />
+  <g fill="none" stroke="#FF6B4A" stroke-width="7" stroke-linecap="round">
+    <path d="M36 104q22 9 44 0" />
+    <path d="M38 113q20 8 40 0" />
+    <path d="M41 122q17 7 34 0" />
+  </g>
+</svg>

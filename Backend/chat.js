@@ -22,11 +22,14 @@ function markRead(conversationId, userId) {
 }
 
 const MESSAGE_SELECT = `
-  SELECT m.id, m.sender_id, m.body, m.created_at, COALESCE(s.full_name, u.email) AS full_name
+  SELECT m.id, m.sender_id, m.body, m.created_at, m.deleted_at, COALESCE(s.full_name, u.email) AS full_name
   FROM messages m
   JOIN users u ON u.id = m.sender_id
   LEFT JOIN students s ON s.student_id = u.student_id
 `;
+
+// Deleted text must never leave the server; the tombstone is the row itself.
+const tidy = (rows) => rows.map((m) => (m.deleted_at ? { ...m, body: '' } : m));
 
 router.get('/conversations', requireAuth, (req, res) => {
   const me = req.session.user;
@@ -36,7 +39,7 @@ router.get('/conversations', requireAuth, (req, res) => {
            p.item_name, p.type,
            ou.email AS owner_email, ot.email AS other_email,
            os.full_name AS owner_name, ts.full_name AS other_name,
-           (SELECT body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS last_body,
+           (SELECT CASE WHEN m.deleted_at IS NOT NULL THEN 'Message deleted' ELSE m.body END FROM messages m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS last_body,
            (SELECT created_at FROM messages m WHERE m.conversation_id = c.id ORDER BY m.id DESC LIMIT 1) AS last_at,
            (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_id != ? AND m.read_at IS NULL) AS unread
     FROM conversations c
@@ -71,7 +74,7 @@ router.get('/conversations/:id', requireAuth, (req, res) => {
   if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
 
   markRead(conv.id, me.id);
-  const messages = db.prepare(MESSAGE_SELECT + ' WHERE m.conversation_id = ? ORDER BY m.id').all(conv.id);
+  const messages = tidy(db.prepare(MESSAGE_SELECT + ' WHERE m.conversation_id = ? ORDER BY m.id').all(conv.id));
   const peerId = conv.owner_id === me.id ? conv.other_id : conv.owner_id;
   const peer = db.prepare(`
     SELECT u.email, s.full_name, s.course, s.year_level, s.block
@@ -84,9 +87,12 @@ router.get('/conversations/:id/feed', requireAuth, (req, res) => {
   const conv = conversationFor(req.params.id, req.session.user);
   if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
   const after = Number(req.query.after) || 0;
-  const messages = db.prepare(MESSAGE_SELECT + ' WHERE m.conversation_id = ? AND m.id > ? ORDER BY m.id').all(conv.id, after);
+  const messages = tidy(db.prepare(MESSAGE_SELECT + ' WHERE m.conversation_id = ? AND m.id > ? ORDER BY m.id').all(conv.id, after));
+  // Every poll also reports which messages are tombstoned, so a delete by the other person lands here.
+  const deleted = db.prepare('SELECT id FROM messages WHERE conversation_id = ? AND deleted_at IS NOT NULL')
+    .all(conv.id).map((m) => m.id);
   markRead(conv.id, req.session.user.id);
-  res.json({ messages });
+  res.json({ messages, deleted });
 });
 
 router.post('/conversations/:id/messages', requireAuth, (req, res) => {
@@ -100,6 +106,23 @@ router.post('/conversations/:id/messages', requireAuth, (req, res) => {
   const id = db.prepare('INSERT INTO messages (conversation_id, sender_id, body, created_at) VALUES (?, ?, ?, ?)')
     .run(conv.id, req.session.user.id, body, new Date().toISOString()).lastInsertRowid;
   res.status(201).json({ ok: true, id });
+});
+
+router.delete('/conversations/:id/messages/:messageId', requireAuth, (req, res) => {
+  const me = req.session.user;
+  const conv = conversationFor(req.params.id, me);
+  if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
+
+  const message = db.prepare('SELECT * FROM messages WHERE id = ? AND conversation_id = ?')
+    .get(Number(req.params.messageId), conv.id);
+  if (!message) return res.status(404).json({ error: 'Message not found.' });
+  if (message.sender_id !== me.id && me.role !== 'admin') {
+    return res.status(403).json({ error: 'You can only delete your own messages.' });
+  }
+
+  const deleted_at = message.deleted_at || new Date().toISOString();
+  db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run(deleted_at, message.id);
+  res.json({ ok: true, id: message.id, deleted_at });
 });
 
 module.exports = { router };

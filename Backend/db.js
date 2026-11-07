@@ -28,7 +28,10 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   role          TEXT NOT NULL DEFAULT 'student',
   verified_at   TEXT,
-  created_at    TEXT NOT NULL
+  created_at    TEXT NOT NULL,
+  totp_secret   TEXT,
+  totp_enabled  INTEGER NOT NULL DEFAULT 0,
+  totp_last_token TEXT
 );
 CREATE TABLE IF NOT EXISTS codes (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,7 +72,16 @@ CREATE TABLE IF NOT EXISTS messages (
   sender_id       INTEGER NOT NULL REFERENCES users(id),
   body            TEXT NOT NULL,
   created_at      TEXT NOT NULL,
-  read_at         TEXT
+  read_at         TEXT,
+  deleted_at      TEXT
+);
+CREATE TABLE IF NOT EXISTS auth_events (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  email      TEXT NOT NULL,
+  role       TEXT NOT NULL,
+  action     TEXT NOT NULL,
+  created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS mail_outbox (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,7 +92,18 @@ CREATE TABLE IF NOT EXISTS mail_outbox (
 );
 CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, id);
+CREATE INDEX IF NOT EXISTS idx_auth_events_id ON auth_events(id);
 `);
+
+// Columns added after the first release; existing databases get them without a reseed.
+function addColumn(table, column, definition) {
+  const has = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+  if (!has) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+addColumn('users', 'totp_secret', 'TEXT');
+addColumn('users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'totp_last_token', 'TEXT');
+addColumn('messages', 'deleted_at', 'TEXT');
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');

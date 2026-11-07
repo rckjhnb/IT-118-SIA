@@ -1,4 +1,5 @@
 require('dotenv').config();
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
@@ -52,7 +53,11 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, '..', 'Frontend')));
+// The React app replaces the old vanilla frontend once it has been built.
+const WEB_DIST = path.join(__dirname, '..', 'Web', 'dist');
+const HAS_WEB = fs.existsSync(path.join(WEB_DIST, 'index.html'));
+
+app.use(express.static(HAS_WEB ? WEB_DIST : path.join(__dirname, '..', 'Frontend')));
 app.use('/uploads', express.static(UPLOAD_DIR));
 
 app.use('/api', auth.router);
@@ -73,6 +78,20 @@ if (!IS_PROD) {
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Route not found.' }));
 
+// Client-side routes: hand any non-API, non-upload page request to the SPA.
+app.use((req, res, next) => {
+  if (
+    HAS_WEB &&
+    req.method === 'GET' &&
+    !req.path.startsWith('/api') &&
+    !req.path.startsWith('/uploads') &&
+    req.accepts('html')
+  ) {
+    return res.sendFile(path.join(WEB_DIST, 'index.html'));
+  }
+  next();
+});
+
 app.use((req, res) => res.status(404).type('text').send('Not found'));
 
 app.use((err, req, res, next) => {
@@ -90,7 +109,7 @@ if (require.main === module) {
   if (IS_PROD && !process.env.SMTP_HOST) console.warn('[mail] SMTP_HOST is not set. Verification codes will not be delivered.');
   app.listen(PORT, () => {
     console.log('FoundIT running at http://localhost:' + PORT);
-    if (!IS_PROD) console.log('Dev outbox (verification codes): http://localhost:' + PORT + '/#/outbox');
+    if (!IS_PROD) console.log('Dev outbox (verification codes): http://localhost:' + PORT + '/outbox');
   });
 }
 

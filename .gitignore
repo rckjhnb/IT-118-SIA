@@ -2,4 +2,7 @@ node_modules/
 .env
 Backend/data/
 Backend/uploads/
+Web/node_modules/
+Web/dist/
+.playwright-mcp/
 *.log
