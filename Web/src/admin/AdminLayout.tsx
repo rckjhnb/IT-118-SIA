@@ -8,11 +8,14 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
+  Sun,
   Users,
   X,
 } from 'lucide-react';
 import { api, type AuthEvent } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../components/Toast';
 
 const items = [
@@ -25,13 +28,14 @@ const items = [
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
     isActive
-      ? 'bg-white/12 font-semibold text-ink shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
-      : 'text-ink/55 hover:bg-white/[0.06] hover:text-ink'
+      ? 'bg-accent/30 font-semibold text-heading shadow-[inset_0_0_0_1px_var(--color-line)]'
+      : 'text-body hover:bg-sunken hover:text-heading'
   }`;
 
 export function AdminLayout() {
   const { user, loading, refresh, setUser } = useAuth();
   const { push } = useToast();
+  const { theme, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [drawer, setDrawer] = useState(false);
@@ -89,7 +93,7 @@ export function AdminLayout() {
   if (loading || !user || user.role !== 'admin') {
     return (
       <div className="admin-shell grid min-h-dvh place-items-center">
-        <p className="text-sm text-ink/50">Checking your session…</p>
+        <p className="text-sm text-muted">Checking your session…</p>
       </div>
     );
   }
@@ -100,8 +104,8 @@ export function AdminLayout() {
         <img src="/logo-main.png" alt="" aria-hidden="true" className="h-12 w-12 flex-shrink-0 object-contain" />
         {!collapsed && (
           <div className="min-w-0">
-            <p className="truncate font-display text-lg font-semibold leading-tight text-ink">FoundIT</p>
-            <p className="truncate text-[11px] text-ink/40">Admin console</p>
+            <p className="truncate font-display text-lg font-semibold leading-tight text-heading">FoundIT</p>
+            <p className="truncate text-[11px] text-muted">Admin console</p>
           </div>
         )}
       </div>
@@ -115,14 +119,14 @@ export function AdminLayout() {
         ))}
       </nav>
 
-      <div className="border-t border-white/10 pt-2">
+      <div className="border-t border-line pt-2">
         {!collapsed && (
-          <p className="truncate px-3 pb-2 text-[11px] text-ink/40">{user.email}</p>
+          <p className="truncate px-3 pb-2 text-[11px] text-muted">{user.email}</p>
         )}
         <button
           type="button"
           onClick={logout}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink/55 transition-colors hover:bg-white/[0.06] hover:text-ink"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-body transition-colors hover:bg-sunken hover:text-heading"
           title="Log out"
         >
           <LogOut className="h-[18px] w-[18px] flex-shrink-0" aria-hidden="true" />
@@ -131,7 +135,7 @@ export function AdminLayout() {
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          className="mt-1 hidden w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink/35 transition-colors hover:bg-white/[0.06] hover:text-ink/70 lg:flex"
+          className="mt-1 hidden w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted transition-colors hover:bg-sunken hover:text-body lg:flex"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
@@ -150,7 +154,7 @@ export function AdminLayout() {
   return (
     <div className="admin-shell min-h-dvh">
       <div className="flex min-h-dvh">
-        <aside className={`admin-chrome hidden flex-shrink-0 border-r border-white/10 transition-[width] lg:block ${collapsed ? 'w-[72px]' : 'w-64'}`}>
+        <aside className={`admin-chrome hidden flex-shrink-0 border-r border-line transition-[width] lg:block ${collapsed ? 'w-[72px]' : 'w-64'}`}>
           {sidebar}
         </aside>
 
@@ -162,11 +166,11 @@ export function AdminLayout() {
               onClick={() => setDrawer(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <aside className="admin-chrome fade-up absolute inset-y-0 left-0 w-64 border-r border-white/10">
+            <aside className="admin-chrome fade-up absolute inset-y-0 left-0 w-64 border-r border-line">
               <button
                 type="button"
                 onClick={() => setDrawer(false)}
-                className="absolute right-3 top-4 rounded-lg p-2 text-ink/50 hover:bg-white/10 hover:text-ink"
+                className="absolute right-3 top-4 rounded-lg p-2 text-muted hover:bg-sunken hover:text-heading"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
@@ -177,19 +181,27 @@ export function AdminLayout() {
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="admin-chrome flex items-center gap-3 border-b border-white/10 px-4 py-3 lg:px-8">
+          <header className="admin-chrome flex items-center gap-3 border-b border-line px-4 py-3 lg:px-8">
             <button
               type="button"
               onClick={() => setDrawer(true)}
-              className="rounded-lg p-2 text-ink/60 hover:bg-white/10 hover:text-ink lg:hidden"
+              className="rounded-lg p-2 text-body hover:bg-sunken hover:text-heading lg:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
-            <p className="text-sm text-ink/45">
-              Welcome back, <span className="font-semibold text-ink/80">{user.full_name || 'Administrator'}</span>
+            <p className="text-sm text-muted">
+              Welcome back, <span className="font-semibold text-heading">{user.full_name || 'Administrator'}</span>
             </p>
-            <Link to="/" className="ml-auto text-xs text-ink/45 no-underline hover:text-ink">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="ml-auto grid h-9 w-9 place-items-center rounded-lg border border-line text-muted transition hover:bg-sunken hover:text-heading"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
+            </button>
+            <Link to="/" className="text-xs text-muted no-underline hover:text-heading">
               View public site
             </Link>
           </header>

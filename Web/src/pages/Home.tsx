@@ -7,6 +7,8 @@ import { useAuth } from '../auth/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { inputClass } from '../components/ui';
 import AnimatedContent from '../components/AnimatedContent';
+import StrokeText from '../components/StrokeText';
+import BorderGlow from '../components/BorderGlow';
 import GlideSelect from '../components/GlideSelect';
 
 const selectClass = 'w-full [&>button]:w-full';
@@ -40,32 +42,45 @@ function TypeBadge({ type }: { type: Post['type'] }) {
 }
 
 function PostCard({ post }: { post: Post }) {
+  const { theme } = useTheme();
   return (
     <Link
       to={`/post/${post.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-paper no-underline transition hover:-translate-y-1 hover:shadow-xl"
+      className="group block h-full no-underline transition hover:-translate-y-1"
     >
-      <div className="relative aspect-[4/3] bg-sunken">
-        {post.image ? (
-          <img src={`/uploads/${post.image}`} alt={post.item_name} className="h-full w-full object-cover" />
-        ) : (
-          <div className="grid h-full place-items-center text-sm text-muted">No photo</div>
-        )}
-        <div className="absolute left-3 top-3">
-          <TypeBadge type={post.type} />
+      <BorderGlow
+        className="h-full"
+        backgroundColor={theme === 'dark' ? '#191527' : '#ffffff'}
+        borderRadius={16}
+        glowColor="260 100 66"
+        glowRadius={40}
+        glowIntensity={0.6}
+        edgeSensitivity={30}
+        coneSpread={20}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+      >
+        <div className="relative aspect-[4/3] bg-sunken">
+          {post.image ? (
+            <img src={`/uploads/${post.image}`} alt={post.item_name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full place-items-center text-sm text-muted">No photo</div>
+          )}
+          <div className="absolute left-3 top-3">
+            <TypeBadge type={post.type} />
+          </div>
         </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-1 p-4">
-        <h2 className="truncate text-lg font-semibold text-body">{post.item_name}</h2>
-        <p className="line-clamp-2 text-sm text-muted">{post.description}</p>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-xs text-muted">
-          <span className="inline-flex items-center gap-1 truncate">
-            <MapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-            {post.location}
-          </span>
-          <span className="flex-shrink-0">{ago(post.created_at)}</span>
+        <div className="flex flex-1 flex-col gap-1 p-4">
+          <h2 className="truncate text-lg font-semibold text-body">{post.item_name}</h2>
+          <p className="line-clamp-2 text-sm text-muted">{post.description}</p>
+          <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-xs text-muted">
+            <span className="inline-flex items-center gap-1 truncate">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+              {post.location}
+            </span>
+            <span className="flex-shrink-0">{ago(post.created_at)}</span>
+          </div>
         </div>
-      </div>
+      </BorderGlow>
     </Link>
   );
 }
@@ -121,7 +136,24 @@ export function Home() {
     <div>
       <AnimatedContent distance={36} duration={0.7} threshold={0.05}>
         <section className="mb-8 overflow-hidden rounded-3xl bg-orchid-deep px-5 py-8 text-white shadow-[0_18px_44px_-22px_rgba(91,32,255,0.65)] sm:px-10 sm:py-12">
-          <h1 className="max-w-2xl text-3xl font-bold sm:text-5xl">Lost something on campus? Found something?</h1>
+          <h1 className="max-w-2xl">
+            <StrokeText
+              text={'Lost something on campus?\nFound something?'}
+              strokeColor="#ffffff"
+              fillColor="#ffffff"
+              strokeWidth={1.2}
+              drawDuration={1.4}
+              fillDelay={0.15}
+              stagger={0.03}
+              trigger="mount"
+              fillMode="fade"
+              fontSize={76}
+              fontWeight={700}
+              letterSpacing={-2}
+              fontFamily="Fraunces, Georgia, serif"
+              hoverRedraw
+            />
+          </h1>
           <p className="mt-3 max-w-xl text-white/80">
             Browse items reported around Bicol University, or post your own so the owner can find it.
           </p>

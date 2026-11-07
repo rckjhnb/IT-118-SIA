@@ -26,24 +26,24 @@ export function AdminPosts() {
   };
 
   if (error) {
-    return <p className="rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm text-red-200">{error}</p>;
+    return <p className="rounded-xl border border-[#f5c2c0] bg-[#fee4e2] px-4 py-3 text-sm text-[#912018]">{error}</p>;
   }
-  if (!data) return <p className="py-16 text-center text-sm text-ink/45">Loading posts…</p>;
+  if (!data) return <p className="py-16 text-center text-sm text-muted">Loading posts…</p>;
 
   return (
     <div className="fade-up space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Posts</h1>
-        <p className="mt-1 text-sm text-ink/45">The 20 most recent reports. Resolve returned items or remove spam.</p>
+        <h1 className="text-2xl font-semibold text-heading sm:text-3xl">Posts</h1>
+        <p className="mt-1 text-sm text-muted">The 20 most recent reports. Resolve returned items or remove spam.</p>
       </div>
 
       <section className="admin-card overflow-hidden rounded-2xl">
         {data.recent.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-ink/40">No posts yet.</p>
+          <p className="px-5 py-10 text-center text-sm text-muted">No posts yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-ink/35">
+              <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Item</th>
                   <th className="px-3 py-3 font-semibold">Type</th>
@@ -53,11 +53,11 @@ export function AdminPosts() {
                   <th className="px-5 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06]">
+              <tbody className="divide-y divide-line">
                 {data.recent.map((p) => (
-                  <tr key={p.id} className="transition-colors hover:bg-white/[0.03]">
+                  <tr key={p.id} className="transition-colors hover:bg-sunken">
                     <td className="max-w-[18rem] truncate px-5 py-3">
-                      <Link to={'/post/' + p.id} className="font-medium text-ink/85 no-underline hover:text-accent">
+                      <Link to={'/post/' + p.id} className="font-medium text-body no-underline hover:text-bu">
                         {p.item_name}
                       </Link>
                     </td>
@@ -70,13 +70,13 @@ export function AdminPosts() {
                         {p.type}
                       </span>
                     </td>
-                    <td className="max-w-[12rem] truncate px-3 py-3 text-ink/60">{p.full_name || '—'}</td>
+                    <td className="max-w-[12rem] truncate px-3 py-3 text-body">{p.full_name || '—'}</td>
                     <td className="px-3 py-3">
-                      <span className={`text-xs ${p.status === 'resolved' ? 'text-emerald-300' : 'text-ink/45'}`}>
+                      <span className={`text-xs ${p.status === 'resolved' ? 'text-emerald-500' : 'text-muted'}`}>
                         {p.status === 'resolved' ? 'Returned' : 'Open'}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-xs text-ink/35">{fmtShort(p.created_at)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-xs text-muted">{fmtShort(p.created_at)}</td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-2">
                         {p.status !== 'resolved' && (
@@ -84,7 +84,7 @@ export function AdminPosts() {
                             type="button"
                             onClick={() => act(p.id, 'resolve')}
                             disabled={busy === p.id}
-                            className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-ink/70 hover:bg-white/10 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs text-body hover:bg-sunken disabled:opacity-50"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                             Resolve
@@ -94,7 +94,7 @@ export function AdminPosts() {
                           type="button"
                           onClick={() => act(p.id, 'remove')}
                           disabled={busy === p.id}
-                          className="inline-flex items-center gap-1 rounded-lg border border-red-400/20 px-2.5 py-1.5 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[#f5c2c0] bg-[#fee4e2] px-2.5 py-1.5 text-xs text-[#912018] hover:bg-[#fdd6d4] disabled:opacity-50"
                         >
                           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                           Remove

@@ -5,7 +5,7 @@ import { api, ApiError, type User } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../components/Toast';
 import CodeSlots from '../components/CodeSlots';
-import { darkInputClass } from '../components/ui';
+import { inputClass } from '../components/ui';
 
 type Step = 'password' | 'code';
 
@@ -101,7 +101,7 @@ export function AdminLogin() {
     <div className="admin-shell relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-4 py-10">
       <Link
         to="/"
-        className="relative z-10 mb-8 inline-flex items-center gap-2 text-sm text-ink/60 no-underline hover:text-ink"
+        className="relative z-10 mb-8 inline-flex items-center gap-2 text-sm text-body no-underline hover:text-heading"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to FoundIT
@@ -111,28 +111,28 @@ export function AdminLogin() {
         <div className="mb-6 flex items-center gap-3">
           <img src="/logo-main.png" alt="" aria-hidden="true" className="h-12 w-12 flex-shrink-0 object-contain" />
           <div>
-            <p className="font-display text-xl font-semibold text-ink">FoundIT Admin</p>
-            <p className="text-xs text-ink/50">Bicol University Lost &amp; Found</p>
+            <p className="font-display text-xl font-semibold text-heading">FoundIT Admin</p>
+            <p className="text-xs text-muted">Bicol University Lost &amp; Found</p>
           </div>
         </div>
 
-        <div className="admin-card rounded-3xl p-6 [background:rgba(20,17,31,0.85)] sm:p-8">
+        <div className="admin-card admin-panel rounded-3xl p-6 sm:p-8">
           {step === 'password' ? (
             <>
-              <div className="mb-5 flex items-center gap-2 text-ink/70">
+              <div className="mb-5 flex items-center gap-2 text-body">
                 <KeyRound className="h-4 w-4" aria-hidden="true" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Step 1 of 2</span>
               </div>
-              <h1 className="text-2xl font-semibold text-ink">Sign in</h1>
-              <p className="mb-6 mt-1 text-sm text-ink/50">Administrator password, then your authenticator code.</p>
+              <h1 className="text-2xl font-semibold text-heading">Sign in</h1>
+              <p className="mb-6 mt-1 text-sm text-muted">Administrator password, then your authenticator code.</p>
               <form onSubmit={password} className="space-y-4">
                 {error && (
-                  <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm text-red-200">
+                  <p role="alert" className="rounded-xl border border-[#f5c2c0] bg-[#fee4e2] px-4 py-3 text-sm text-[#912018]">
                     {error}
                   </p>
                 )}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="admin-email" className="text-[13px] font-medium text-ink/70">
+                  <label htmlFor="admin-email" className="text-[13px] font-medium text-body">
                     Admin email
                   </label>
                   <input
@@ -142,11 +142,11 @@ export function AdminLogin() {
                     required
                     autoComplete="username"
                     placeholder="admin@bicol-u.edu.ph"
-                    className={darkInputClass}
+                    className={inputClass}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="admin-password" className="text-[13px] font-medium text-ink/70">
+                  <label htmlFor="admin-password" className="text-[13px] font-medium text-body">
                     Password
                   </label>
                   <input
@@ -155,13 +155,13 @@ export function AdminLogin() {
                     type="password"
                     required
                     autoComplete="current-password"
-                    className={darkInputClass}
+                    className={inputClass}
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#120a1f] shadow-[0_0_40px_rgba(167,139,250,0.45)] transition hover:bg-white/90 disabled:opacity-60"
+                  className="w-full rounded-xl bg-[#5b20ff] px-4 py-3 text-sm font-bold text-white shadow-[0_0_40px_rgba(167,139,250,0.35)] transition hover:bg-[#7a46ff] disabled:opacity-60"
                 >
                   {busy ? 'Checking…' : 'Continue'}
                 </button>
@@ -169,12 +169,12 @@ export function AdminLogin() {
             </>
           ) : (
             <>
-              <div className="mb-5 flex items-center gap-2 text-ink/70">
+              <div className="mb-5 flex items-center gap-2 text-body">
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Step 2 of 2</span>
               </div>
-              <h1 className="text-2xl font-semibold text-ink">{setup ? 'Set up two-factor' : 'Authenticator code'}</h1>
-              <p className="mb-6 mt-1 text-sm text-ink/50">
+              <h1 className="text-2xl font-semibold text-heading">{setup ? 'Set up two-factor' : 'Authenticator code'}</h1>
+              <p className="mb-6 mt-1 text-sm text-muted">
                 {setup
                   ? 'Scan this with Google Authenticator, then enter the 6-digit code it shows.'
                   : 'Enter the 6-digit code from your authenticator app.'}
@@ -191,15 +191,15 @@ export function AdminLogin() {
                       className="mx-auto rounded-2xl bg-white p-2"
                     />
                   )}
-                  <p className="mt-3 text-xs text-ink/50">Cannot scan? Enter this key manually:</p>
-                  <code className="mt-1 inline-block break-all rounded-lg bg-white/5 px-3 py-1.5 text-xs text-ink/80">
+                  <p className="mt-3 text-xs text-muted">Cannot scan? Enter this key manually:</p>
+                  <code className="mt-1 inline-block break-all rounded-lg bg-sunken px-3 py-1.5 text-xs text-body">
                     {secret}
                   </code>
                 </div>
               )}
 
               {error && (
-                <p role="alert" className="mb-4 rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm text-red-200">
+                <p role="alert" className="mb-4 rounded-xl border border-[#f5c2c0] bg-[#fee4e2] px-4 py-3 text-sm text-[#912018]">
                   {error}
                 </p>
               )}
@@ -224,7 +224,7 @@ export function AdminLogin() {
                 type="button"
                 onClick={() => verify(code)}
                 disabled={busy || code.length !== 6}
-                className="mt-6 w-full rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#120a1f] shadow-[0_0_40px_rgba(167,139,250,0.45)] transition hover:bg-white/90 disabled:opacity-40"
+                className="mt-6 w-full rounded-xl bg-[#5b20ff] px-4 py-3 text-sm font-bold text-white shadow-[0_0_40px_rgba(167,139,250,0.35)] transition hover:bg-[#7a46ff] disabled:opacity-40"
               >
                 {busy ? 'Verifying…' : setup ? 'Enable 2FA and log in' : 'Verify and log in'}
               </button>
@@ -237,7 +237,7 @@ export function AdminLogin() {
                   setCodeStatus('idle');
                   setError('');
                 }}
-                className="mt-4 w-full text-center text-sm text-ink/50 hover:text-ink"
+                className="mt-4 w-full text-center text-sm text-muted hover:text-heading"
               >
                 Use a different account
               </button>
@@ -245,14 +245,14 @@ export function AdminLogin() {
           )}
 
           {config.demo && step === 'password' && (
-            <p className="mt-6 border-t border-white/10 pt-4 text-xs text-ink/40">
-              Demo admin: <code className="text-ink/70">admin@bicol-u.edu.ph</code> / <code className="text-ink/70">Password123</code>
+            <p className="mt-6 border-t border-line pt-4 text-xs text-muted">
+              Demo admin: <code className="text-body">admin@bicol-u.edu.ph</code> / <code className="text-body">Password123</code>
               , then the authenticator code.
             </p>
           )}
         </div>
 
-        <p className="mt-5 text-center text-xs text-ink/35">
+        <p className="mt-5 text-center text-xs text-muted">
           Codes change every 30 seconds. Lost your device? An admin with database access must reset 2FA.
         </p>
       </div>

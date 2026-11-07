@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { fmt } from '../lib/format';
-import { darkInputClass } from '../components/ui';
+import { inputClass } from '../components/ui';
 import { useAdminData } from './data';
 
 export function AdminAccounts() {
@@ -9,7 +9,7 @@ export function AdminAccounts() {
   const [q, setQ] = useState('');
 
   if (error) {
-    return <p className="rounded-xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm text-red-200">{error}</p>;
+    return <p className="rounded-xl border border-[#f5c2c0] bg-[#fee4e2] px-4 py-3 text-sm text-[#912018]">{error}</p>;
   }
 
   const needle = q.trim().toLowerCase();
@@ -20,28 +20,28 @@ export function AdminAccounts() {
   return (
     <div className="fade-up space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">Accounts</h1>
-        <p className="mt-1 text-sm text-ink/45">Everyone with a FoundIT account, newest first.</p>
+        <h1 className="text-2xl font-semibold text-heading sm:text-3xl">Accounts</h1>
+        <p className="mt-1 text-sm text-muted">Everyone with a FoundIT account, newest first.</p>
       </div>
 
       <div className="relative max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/30" aria-hidden="true" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name or email"
           aria-label="Search accounts"
-          className={`${darkInputClass} pl-10`}
+          className={`${inputClass} pl-10`}
         />
       </div>
 
       {!data ? (
-        <p className="py-12 text-center text-sm text-ink/45">Loading accounts…</p>
+        <p className="py-12 text-center text-sm text-muted">Loading accounts…</p>
       ) : (
         <section className="admin-card overflow-hidden rounded-2xl">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-ink/35">
+              <thead className="border-b border-line text-xs uppercase tracking-wider text-muted">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Name</th>
                   <th className="px-3 py-3 font-semibold">Email</th>
@@ -51,32 +51,32 @@ export function AdminAccounts() {
                   <th className="px-5 py-3 font-semibold">Joined</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06]">
+              <tbody className="divide-y divide-line">
                 {users.map((u) => (
-                  <tr key={u.id} className="transition-colors hover:bg-white/[0.03]">
-                    <td className="max-w-[14rem] truncate px-5 py-3 font-medium text-ink/85">{u.full_name || '—'}</td>
-                    <td className="max-w-[18rem] truncate px-3 py-3 text-ink/55">{u.email}</td>
+                  <tr key={u.id} className="transition-colors hover:bg-sunken">
+                    <td className="max-w-[14rem] truncate px-5 py-3 font-medium text-body">{u.full_name || '—'}</td>
+                    <td className="max-w-[18rem] truncate px-3 py-3 text-body">{u.email}</td>
                     <td className="px-3 py-3">
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          u.role === 'admin' ? 'bg-accent/20 text-accent' : 'bg-white/10 text-ink/60'
+                          u.role === 'admin' ? 'bg-accent/20 text-bu' : 'bg-sunken text-body'
                         }`}
                       >
                         {u.role}
                       </span>
                     </td>
-                    <td className="max-w-[12rem] truncate px-3 py-3 text-ink/50">{u.course || '—'}</td>
+                    <td className="max-w-[12rem] truncate px-3 py-3 text-muted">{u.course || '—'}</td>
                     <td className="px-3 py-3">
-                      <span className={`text-xs ${u.verified_at ? 'text-emerald-300' : 'text-amber-300'}`}>
+                      <span className={`text-xs ${u.verified_at ? 'text-emerald-500' : 'text-amber-500'}`}>
                         {u.verified_at ? 'Yes' : 'Pending'}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-5 py-3 text-xs text-ink/35">{fmt(u.created_at)}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-xs text-muted">{fmt(u.created_at)}</td>
                   </tr>
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-sm text-ink/40">
+                    <td colSpan={6} className="px-5 py-10 text-center text-sm text-muted">
                       No accounts match that search.
                     </td>
                   </tr>

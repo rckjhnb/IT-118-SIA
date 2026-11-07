@@ -88,8 +88,16 @@ html.dark .home-shell {
     linear-gradient(160deg, #14101f 0%, #0f0d18 60%, #0b0a13 100%);
 }
 
-/* Admin stays a dark console; re-hued to violet-black to match the light public app. */
+/* Admin console follows the theme: light lavender by default, violet-black in dark. */
 .admin-shell {
+  background:
+    radial-gradient(1100px 520px at 8% -10%, rgba(91, 32, 255, 0.12), transparent 60%),
+    radial-gradient(900px 480px at 92% 0%, rgba(200, 180, 255, 0.38), transparent 65%),
+    linear-gradient(145deg, #f8f5ff 0%, #fcfaff 72%);
+  color: var(--color-body);
+}
+
+html.dark .admin-shell {
   background:
     radial-gradient(1100px 520px at 8% -10%, rgba(91, 32, 255, 0.28), transparent 60%),
     radial-gradient(900px 480px at 92% 0%, rgba(200, 180, 255, 0.12), transparent 65%),
@@ -98,17 +106,43 @@ html.dark .home-shell {
 }
 
 .admin-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-line);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(14px);
 }
 
+html.dark .admin-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Login panel needs a stronger surface than the table cards. */
+.admin-panel {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+html.dark .admin-panel {
+  background: rgba(20, 17, 31, 0.85);
+}
+
 .admin-chrome {
+  background: rgba(252, 250, 255, 0.92);
+}
+
+html.dark .admin-chrome {
   background: rgba(26, 23, 40, 0.92);
 }
 
 /* Auth pages reuse the admin console surface and tokens. */
 .auth-shell {
+  background:
+    radial-gradient(1100px 520px at 8% -10%, rgba(91, 32, 255, 0.16), transparent 60%),
+    radial-gradient(900px 480px at 92% 0%, rgba(200, 180, 255, 0.4), transparent 65%),
+    linear-gradient(145deg, #f7f3ff 0%, #fcfaff 72%);
+  color: var(--color-body);
+}
+
+html.dark .auth-shell {
   background:
     radial-gradient(1100px 520px at 8% -10%, rgba(91, 32, 255, 0.28), transparent 60%),
     radial-gradient(900px 480px at 92% 0%, rgba(200, 180, 255, 0.12), transparent 65%),
@@ -127,6 +161,12 @@ html.dark .home-shell {
 .auth-shell input,
 .auth-shell select,
 .auth-shell textarea {
+  color-scheme: light;
+}
+
+html.dark .auth-shell input,
+html.dark .auth-shell select,
+html.dark .auth-shell textarea {
   color-scheme: dark;
 }
 

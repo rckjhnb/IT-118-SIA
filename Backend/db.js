@@ -147,7 +147,7 @@ const SEED_POSTS = [
   ['2024-00102', 'found', 'Brown Leather Wallet', 'Wallet', 'Brown leather bi-fold wallet with several card slots. Kept by the Student Center office for safekeeping.', 'Student Center', '2026-10-26T08:20', 'seed-wallet.jpg', 'open'],
   ['2025-00312', 'lost', 'Scientific Calculator (Casio FX-991EX)', 'Electronics', 'Black Casio FX-991EX ClassWiz calculator. Last used during the math quiz.', 'Engineering Building', '2026-10-26T10:05', 'seed-calculator.jpg', 'open'],
   ['2024-00101', 'found', 'Set of Keys with Blue Keychain', 'Keys', 'Single key on a blue keychain with translucent blue charms and a braided cord.', 'Track Oval', '2026-10-26T16:40', 'seed-keys.jpg', 'open'],
-  ['2023-00233', 'lost', 'PE Uniform Shirt', 'Uniform / Clothing', 'White PATFIT PE shirt with blue and orange sleeves. Left hanging at the University Gym.', 'University Gym', '2026-10-26T17:55', 'seed-jacket.jpg', 'open'],
+  ['2023-00233', 'lost', 'PE Uniform Shirt', 'Uniform / Clothing', 'White PATHFIT PE shirt with blue and orange sleeves. Left hanging at the University Gym.', 'University Gym', '2026-10-26T17:55', 'seed-jacket.jpg', 'open'],
 ];
 
 const SEED_IMAGE_DIR = path.join(__dirname, 'seed-images');
