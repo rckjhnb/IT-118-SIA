@@ -30,7 +30,7 @@ export function PostNew() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <PageHead title="Post an item" lede="Describe what you lost or found. The admin is notified automatically." />
       <form onSubmit={submit} className="space-y-5 rounded-2xl border border-line bg-paper p-5 sm:p-8">
         {error && <Alert>{error}</Alert>}

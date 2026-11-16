@@ -32,7 +32,7 @@ export function Messages() {
   const peerName = (c: Conversation) => (c.owner_id === user?.id ? c.other_name || c.other_email : c.owner_name || c.owner_email);
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <PageHead title="Messages" lede="Your conversations about lost and found items." />
         {data && !data.isAdmin && (

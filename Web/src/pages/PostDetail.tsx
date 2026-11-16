@@ -69,7 +69,7 @@ export function PostDetail() {
   const { post, conversations, isOwner, canContact, canResolve } = data;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <Link to="/browse" className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-bu no-underline hover:underline">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to browse

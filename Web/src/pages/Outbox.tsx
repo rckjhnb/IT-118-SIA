@@ -37,7 +37,7 @@ export function Outbox() {
   if (!config.demo) return <NotFound />;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <PageHead
           title="Dev outbox"

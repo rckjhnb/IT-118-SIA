@@ -15,7 +15,7 @@ export function MyPosts() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <PageHead title="My posts" lede="Everything you have reported, open and returned." />
       {error && <p className="rounded-xl border border-[#f5c2c0] bg-[#fee4e2] px-4 py-3 text-sm text-[#912018]">{error}</p>}
       {!posts ? (

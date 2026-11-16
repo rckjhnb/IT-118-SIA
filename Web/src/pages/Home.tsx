@@ -12,6 +12,8 @@ import BorderGlow from '../components/BorderGlow';
 import GlideSelect from '../components/GlideSelect';
 
 const selectClass = 'w-full [&>button]:w-full';
+// Flip to true to restore the original violet hero panel.
+const HERO_CARD = false;
 const selectLook = {
   surfaceColor: '#ffffff',
   highlightColor: '#f5f2fc',
@@ -89,6 +91,7 @@ export function Home() {
   const { user, config } = useAuth();
   const { theme } = useTheme();
   const look = theme === 'dark' ? selectLookDark : selectLook;
+  const ink = HERO_CARD || theme === 'dark' ? '#ffffff' : '#1f1f28';
   const [params, setParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,12 +138,12 @@ export function Home() {
   return (
     <div>
       <AnimatedContent distance={36} duration={0.7} threshold={0.05}>
-        <section className="mb-8 overflow-hidden rounded-3xl bg-orchid-deep px-5 py-8 text-white shadow-[0_18px_44px_-22px_rgba(91,32,255,0.65)] sm:px-10 sm:py-12">
+        <section className={`mb-8 ${HERO_CARD ? 'overflow-hidden rounded-3xl bg-orchid-deep px-5 py-8 text-white shadow-[0_18px_44px_-22px_rgba(91,32,255,0.65)] sm:px-10 sm:py-12' : ''}`}>
           <h1 className="max-w-2xl">
             <StrokeText
               text={'Lost something on campus?\nFound something?'}
-              strokeColor="#ffffff"
-              fillColor="#ffffff"
+              strokeColor={ink}
+              fillColor={ink}
               strokeWidth={1.2}
               drawDuration={1.4}
               fillDelay={0.15}
@@ -154,24 +157,17 @@ export function Home() {
               hoverRedraw
             />
           </h1>
-          <p className="mt-3 max-w-xl text-white/80">
+          <p className={`mt-3 max-w-xl ${HERO_CARD ? 'text-white/80' : 'text-muted'}`}>
             Browse items reported around Bicol University, or post your own so the owner can find it.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to={user ? '/post/new' : '/login?next=/post/new'}
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#5b20ff] no-underline shadow-sm transition hover:bg-accent/40"
+              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold no-underline shadow-sm transition ${HERO_CARD ? 'bg-white text-[#5b20ff] hover:bg-accent/40' : 'bg-[#5b20ff] text-white hover:bg-[#7a46ff]'}`}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
               Post an item
             </Link>
-            <a
-              href="#browse"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/40 px-5 py-3 text-sm font-semibold text-white no-underline hover:bg-white/15"
-            >
-              <Search className="h-4 w-4" aria-hidden="true" />
-              Search
-            </a>
           </div>
         </section>
       </AnimatedContent>
@@ -251,7 +247,7 @@ export function Home() {
           <p className="mt-1 text-muted">Try clearing the search or choosing another category.</p>
         </div>
       ) : (
-        <AnimatedContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" distance={44} duration={0.7} stagger={0.07} threshold={0.05}>
+        <AnimatedContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" distance={44} duration={0.7} stagger={0.07} threshold={0.05}>
           {posts.map((p) => (
             <PostCard key={p.id} post={p} />
           ))}

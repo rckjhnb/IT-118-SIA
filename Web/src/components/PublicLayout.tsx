@@ -14,6 +14,8 @@ function RouterLink({ href, ...rest }: { href?: string } & Omit<ComponentProps<t
 }
 
 const AUTH_PAGES = ['/welcome', '/login', '/signup', '/verify', '/forgot', '/reset'];
+const authButtonClass =
+  'inline-flex items-center rounded-full border border-line bg-paper px-4 py-2.5 text-sm font-medium text-body no-underline transition hover:bg-sunken';
 
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { user, unread, setUser } = useAuth();
@@ -48,19 +50,18 @@ export function PublicLayout({ children }: { children: ReactNode }) {
     { label: 'Browse', href: '/browse' },
     ...(user ? [{ label: `Messages${unread ? ` (${unread})` : ''}`, href: '/messages' }] : []),
     { label: 'About', href: '/about' },
-    ...(user ? [] : [{ label: 'Log in', href: '/login' }]),
   ];
 
   return (
     <div
-      className={`relative flex min-h-screen flex-col ${isAuth && !isWelcome ? 'auth-shell' : ''} ${
+      className={`relative flex min-h-screen flex-col overflow-x-clip ${isAuth && !isWelcome ? 'auth-shell' : ''} ${
         isHome ? 'home-shell' : ''
       }`}
     >
       <div className="relative z-10 flex min-h-screen flex-col">
         {!isAuth && (
         <header className="px-3 pb-1 pt-6 sm:px-5 sm:pt-7">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
+          <div className="flex w-full flex-wrap items-center gap-3">
             <PillNav
               logo="/logo-main.png"
               logoAlt="FoundIT home"
@@ -90,13 +91,6 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               </button>
               {user ? (
                 <>
-                  <Link
-                    to="/post/new"
-                    className="inline-flex items-center gap-2 rounded-full bg-gold px-4 py-2.5 text-sm font-bold text-bu-dark no-underline transition hover:bg-gold-light"
-                  >
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Post an item
-                  </Link>
                   <div className="relative">
                     <button
                       type="button"
@@ -140,17 +134,19 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                   </div>
                 </>
               ) : (
-                <Link
-                  to="/signup"
-                  className="inline-flex items-center gap-2 rounded-full bg-gold px-4 py-2.5 text-sm font-bold text-bu-dark no-underline transition hover:bg-gold-light"
-                >
-                  Sign up
-                </Link>
+                <>
+                  <Link to="/login" className={authButtonClass}>
+                    Log in
+                  </Link>
+                  <Link to="/signup" className={authButtonClass}>
+                    Sign up
+                  </Link>
+                </>
               )}
             </div>
           </div>
 
-          <div className="mx-auto mt-2 flex max-w-6xl items-center justify-between gap-3 rounded-2xl border border-line bg-paper px-3 py-2 text-sm shadow-sm lg:hidden">
+          <div className="mt-2 flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-paper px-3 py-2 text-sm shadow-sm lg:hidden">
             {user ? (
               <>
                 <Link to="/post/new" className="inline-flex items-center gap-1.5 font-semibold text-bu no-underline">
@@ -191,6 +187,9 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                   >
                     {theme === 'dark' ? <Sun className="h-3.5 w-3.5" aria-hidden="true" /> : <Moon className="h-3.5 w-3.5" aria-hidden="true" />}
                   </button>
+                  <Link to="/login" className="text-bu no-underline hover:underline">
+                    Log in
+                  </Link>
                   <Link to="/signup" className="font-semibold text-bu no-underline hover:underline">
                     Sign up
                   </Link>
@@ -201,11 +200,11 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         </header>
         )}
 
-        <main className={isWelcome ? 'w-full flex-1' : 'mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10'}>{children}</main>
+        <main className={isWelcome ? 'w-full flex-1' : 'w-full flex-1 px-4 py-8 sm:px-6 sm:py-10'}>{children}</main>
 
         {!isAuth && (
-        <footer className={`border-t border-line ${isHome ? 'bg-transparent' : 'bg-paper'}`}>
-          <AnimatedContent distance={24} duration={0.6} threshold={0.02} className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-5 text-sm text-muted sm:flex-row">
+        <footer>
+          <AnimatedContent distance={24} duration={0.6} threshold={0.02} className="flex w-full flex-col items-center justify-between gap-3 px-4 py-5 text-sm text-muted sm:flex-row">
             <span className="inline-flex items-center gap-2">
               <img src="/logo-main.png" alt="" className="h-6 w-6" />
               FoundIT · Bicol University Lost &amp; Found
@@ -216,9 +215,6 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                   <Link to="/post/new" className="text-bu hover:underline lg:hidden">
                     Post an item
                   </Link>
-                  <button type="button" onClick={logout} className="text-bu hover:underline">
-                    Log out
-                  </button>
                 </>
               )}
               <Link to="/about" className="text-bu hover:underline">

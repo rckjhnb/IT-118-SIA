@@ -2,7 +2,7 @@ import { PageHead } from '../components/ui';
 
 export function About() {
   return (
-    <div className="mx-auto max-w-3xl rounded-2xl border border-line bg-paper p-6 sm:p-10">
+    <div>
       <img
         src="/logo-full.png"
         alt="FoundIT — Bicol University Lost and Found"
