@@ -6,7 +6,7 @@ const express = require('express');
 const session = require('express-session');
 const multer = require('multer');
 
-const { db } = require('./db');
+const { connect, getDb, withId } = require('./db');
 const { IS_PROD, UPLOAD_DIR, requireAdmin } = require('./shared');
 const auth = require('./auth');
 const posts = require('./posts');
@@ -21,6 +21,9 @@ if (!secret) {
   if (IS_PROD) throw new Error('SESSION_SECRET must be set when NODE_ENV=production.');
   secret = crypto.randomBytes(32).toString('hex'); // dev only: sessions reset on restart anyway
 }
+
+// Routes await getDb(), so nothing may run before this settles.
+app.ready = connect();
 
 app.disable('x-powered-by');
 if (process.env.TRUST_PROXY) app.set('trust proxy', 1);
@@ -67,11 +70,12 @@ app.use('/api', admin.router);
 
 // Dev outbox shows verification codes when no SMTP is configured. Never mounted in production.
 if (!IS_PROD) {
-  app.get('/api/dev/outbox', (req, res) => {
-    res.json({ messages: db.prepare('SELECT * FROM mail_outbox ORDER BY id DESC LIMIT 50').all() });
+  app.get('/api/dev/outbox', async (req, res) => {
+    const messages = await getDb().collection('mail_outbox').find().sort({ _id: -1 }).limit(50).toArray();
+    res.json({ messages: messages.map(withId) });
   });
-  app.post('/api/dev/outbox/clear', requireAdmin, (req, res) => {
-    db.prepare('DELETE FROM mail_outbox').run();
+  app.post('/api/dev/outbox/clear', requireAdmin, async (req, res) => {
+    await getDb().collection('mail_outbox').deleteMany({});
     res.json({ ok: true });
   });
 }
@@ -106,10 +110,15 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
-  if (IS_PROD && !process.env.SMTP_HOST) console.warn('[mail] SMTP_HOST is not set. Verification codes will not be delivered.');
-  app.listen(PORT, () => {
-    console.log('FoundIT running at http://localhost:' + PORT);
-    if (!IS_PROD) console.log('Dev outbox (verification codes): http://localhost:' + PORT + '/outbox');
+  app.ready.then(() => {
+    if (IS_PROD && !process.env.SMTP_HOST) console.warn('[mail] SMTP_HOST is not set. Verification codes will not be delivered.');
+    app.listen(PORT, () => {
+      console.log('FoundIT running at http://localhost:' + PORT);
+      if (!IS_PROD) console.log('Dev outbox (verification codes): http://localhost:' + PORT + '/outbox');
+    });
+  }).catch((err) => {
+    console.error('Database connection failed:', err.message);
+    process.exit(1);
   });
 }
 

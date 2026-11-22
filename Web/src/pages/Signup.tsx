@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../lib/api';
+import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../components/Toast';
 import { Alert, BrandMark, Button, Field, inputClass } from '../components/ui';
 
 export function Signup() {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
+  const { push } = useToast();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -14,8 +18,10 @@ export function Signup() {
     setBusy(true);
     const fd = new FormData(e.currentTarget);
     try {
-      const r = await api<{ email: string }>('/signup', { method: 'POST', body: Object.fromEntries(fd) });
-      navigate('/verify?email=' + encodeURIComponent(r.email));
+      const r = await api<{ user: { full_name: string | null; email: string } }>('/signup', { method: 'POST', body: Object.fromEntries(fd) });
+      await refresh();
+      push('Account created', 'Welcome, ' + (r.user.full_name || r.user.email) + '!');
+      navigate('/');
     } catch (err) {
       setError((err as ApiError).message);
     } finally {
@@ -65,7 +71,7 @@ export function Signup() {
             />
           </Field>
           <Button type="submit" disabled={busy} className="w-full">
-            {busy ? 'Sending code…' : 'Send verification code'}
+            {busy ? 'Creating account…' : 'Create account'}
           </Button>
         </form>
         <p className="mt-5 text-center text-sm text-muted">

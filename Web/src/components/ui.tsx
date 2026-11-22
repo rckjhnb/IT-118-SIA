@@ -4,12 +4,12 @@ const base =
   'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
 const variants = {
-  primary: 'bg-[#5b20ff] text-white hover:bg-[#7a46ff] shadow-[0_12px_28px_-14px_rgba(91,32,255,0.55)]',
-  gold: 'bg-[#5b20ff] text-white hover:bg-[#7a46ff]',
+  primary: 'bg-gold text-bu-dark hover:bg-gold-light shadow-[0_12px_28px_-14px_rgba(244,114,30,0.65)]',
+  gold: 'bg-gold text-bu-dark hover:bg-gold-light',
   outline: 'border border-line bg-paper text-body hover:border-bu/40 hover:text-bu',
   ghost: 'text-muted hover:bg-sunken hover:text-heading',
   danger: 'border border-[#f5c2c0] bg-[#fee4e2] text-[#912018] hover:bg-[#fdd6d4]',
-  light: 'bg-white text-bu hover:bg-accent/30',
+  light: 'bg-paper text-bu hover:bg-accent/40',
 } as const;
 
 export function Button({

@@ -1,123 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const Database = require('better-sqlite3');
+const { MongoClient } = require('mongodb');
 const { UPLOAD_DIR, ADMIN_EMAIL } = require('./shared');
-
-const DATA_DIR = path.join(__dirname, 'data');
-fs.mkdirSync(DATA_DIR, { recursive: true });
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const db = new Database(process.env.SIA_DB || path.join(DATA_DIR, 'app.db'));
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-db.exec(`
-CREATE TABLE IF NOT EXISTS students (
-  student_id TEXT PRIMARY KEY,
-  full_name  TEXT NOT NULL,
-  email      TEXT NOT NULL UNIQUE,
-  course     TEXT NOT NULL,
-  year_level INTEGER NOT NULL,
-  block      TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS users (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  email         TEXT NOT NULL UNIQUE,
-  student_id    TEXT REFERENCES students(student_id),
-  password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'student',
-  verified_at   TEXT,
-  created_at    TEXT NOT NULL,
-  totp_secret   TEXT,
-  totp_enabled  INTEGER NOT NULL DEFAULT 0,
-  totp_last_token TEXT
-);
-CREATE TABLE IF NOT EXISTS codes (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  purpose    TEXT NOT NULL,
-  code       TEXT NOT NULL,
-  expires_at TEXT NOT NULL,
-  used_at    TEXT
-);
-CREATE TABLE IF NOT EXISTS posts (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id     INTEGER NOT NULL REFERENCES users(id),
-  type        TEXT NOT NULL CHECK (type IN ('lost','found')),
-  item_name   TEXT NOT NULL,
-  category    TEXT NOT NULL,
-  description TEXT NOT NULL,
-  location    TEXT NOT NULL,
-  occurred_at TEXT NOT NULL,
-  status      TEXT NOT NULL DEFAULT 'open',
-  admin_seen  INTEGER NOT NULL DEFAULT 0,
-  created_at  TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS post_images (
-  id       INTEGER PRIMARY KEY AUTOINCREMENT,
-  post_id  INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  filename TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS conversations (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  post_id    INTEGER REFERENCES posts(id) ON DELETE CASCADE,
-  owner_id   INTEGER NOT NULL REFERENCES users(id),
-  other_id   INTEGER NOT NULL REFERENCES users(id),
-  created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS messages (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-  sender_id       INTEGER NOT NULL REFERENCES users(id),
-  body            TEXT NOT NULL,
-  created_at      TEXT NOT NULL,
-  read_at         TEXT,
-  deleted_at      TEXT
-);
-CREATE TABLE IF NOT EXISTS auth_events (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  email      TEXT NOT NULL,
-  role       TEXT NOT NULL,
-  action     TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS mail_outbox (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  to_email   TEXT NOT NULL,
-  subject    TEXT NOT NULL,
-  body       TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, id);
-CREATE INDEX IF NOT EXISTS idx_auth_events_id ON auth_events(id);
-`);
-
-// Columns added after the first release; existing databases get them without a reseed.
-function addColumn(table, column, definition) {
-  const has = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
-  if (!has) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-}
-addColumn('users', 'totp_secret', 'TEXT');
-addColumn('users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
-addColumn('users', 'totp_last_token', 'TEXT');
-addColumn('messages', 'deleted_at', 'TEXT');
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-  return 'scrypt$' + salt + '$' + hash;
-}
-
-function checkPassword(password, stored) {
-  const parts = String(stored || '').split('$');
-  if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
-  const candidate = crypto.scryptSync(password, parts[1], 64);
-  const expected = Buffer.from(parts[2], 'hex');
-  return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected);
-}
 
 const DEMO_PASSWORD = 'Password123';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || DEMO_PASSWORD;
@@ -151,65 +36,185 @@ const SEED_POSTS = [
 ];
 
 const SEED_IMAGE_DIR = path.join(__dirname, 'seed-images');
+const COLLECTIONS = ['students', 'users', 'posts', 'conversations', 'messages', 'codes', 'auth_events', 'mail_outbox', 'counters'];
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return 'scrypt$' + salt + '$' + hash;
+}
+
+function checkPassword(password, stored) {
+  const parts = String(stored || '').split('$');
+  if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
+  const candidate = crypto.scryptSync(password, parts[1], 64);
+  const expected = Buffer.from(parts[2], 'hex');
+  return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected);
+}
 
 function copySeedPhotos() {
   if (!fs.existsSync(SEED_IMAGE_DIR)) return;
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   for (const file of fs.readdirSync(SEED_IMAGE_DIR)) {
     const target = path.join(UPLOAD_DIR, file);
     if (!fs.existsSync(target)) fs.copyFileSync(path.join(SEED_IMAGE_DIR, file), target);
   }
 }
 
-copySeedPhotos();
+let client;
+let database;
 
-// Upgrade databases seeded before real photos existed.
-db.prepare("UPDATE post_images SET filename = replace(filename, '.svg', '.jpg') WHERE filename LIKE 'seed-%.svg'").run();
-db.prepare("DELETE FROM posts WHERE item_name LIKE 'Hardbound Notebook%'").run();
-const rewordSeedPost = db.prepare(
-  'UPDATE posts SET item_name = ?, description = ? WHERE id IN (SELECT post_id FROM post_images WHERE filename = ?)',
-);
-for (const [, , item, , description, , , image] of SEED_POSTS) rewordSeedPost.run(item, description, image);
+async function connect() {
+  if (database) return database;
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI is not set. Copy .env.example to .env and paste your Atlas connection string.');
+  }
+  client = new MongoClient(uri, { serverSelectionTimeoutMS: 10000 });
+  await client.connect();
+  database = client.db(process.env.MONGODB_DB || 'foundit');
+  copySeedPhotos();
+  await seedDatabase(database);
+  return database;
+}
 
-function seed() {
-  const studentCount = db.prepare('SELECT COUNT(*) AS n FROM students').get().n;
-  if (studentCount > 0) return;
+function getDb() {
+  if (!database) throw new Error('connect() must finish before the database is used.');
+  return database;
+}
+
+async function close() {
+  if (client) await client.close();
+  client = undefined;
+  database = undefined;
+}
+
+async function nextId(name) {
+  const doc = await getDb().collection('counters').findOneAndUpdate(
+    { _id: name },
+    { $inc: { seq: 1 } },
+    { upsert: true, returnDocument: 'after' },
+  );
+  return doc.seq;
+}
+
+// Denormalised author details so the feed does not need joins on every read.
+async function authorSnapshot(userId) {
+  const db = getDb();
+  const user = await db.collection('users').findOne({ _id: userId });
+  const student = user && user.student_id
+    ? await db.collection('students').findOne({ _id: user.student_id, email: user.email })
+    : null;
+  return {
+    full_name: student ? student.full_name : null,
+    course: student ? student.course : null,
+    year_level: student ? student.year_level : null,
+    block: student ? student.block : null,
+  };
+}
+
+function withId(doc) {
+  const { _id, ...rest } = doc;
+  return { id: _id, ...rest };
+}
+
+// Inserts the demo roster, accounts, posts and one conversation. Skips a database that already has users.
+async function seedDatabase(db, { reset = false } = {}) {
+  if (reset) for (const name of COLLECTIONS) await db.collection(name).drop().catch(() => {});
+
+  if (await db.collection('users').countDocuments()) return false;
 
   const now = new Date().toISOString();
 
-  const insertStudent = db.prepare('INSERT INTO students (student_id, full_name, email, course, year_level, block) VALUES (?, ?, ?, ?, ?, ?)');
-  const insertUser = db.prepare('INSERT INTO users (email, student_id, password_hash, role, verified_at, created_at) VALUES (?, ?, ?, ?, ?, ?)');
-  const insertPost = db.prepare('INSERT INTO posts (user_id, type, item_name, category, description, location, occurred_at, status, admin_seen, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  const insertImage = db.prepare('INSERT INTO post_images (post_id, filename) VALUES (?, ?)');
+  await db.collection('students').insertMany(STUDENTS.map(([id, full_name, email, course, year_level, block]) => ({
+    _id: id, full_name, email, course, year_level, block,
+  })));
 
-  const seedAll = db.transaction(() => {
-    for (const row of STUDENTS) insertStudent.run(...row);
+  const students = await db.collection('students').find().toArray();
+  const byStudentId = new Map(students.map((s) => [s._id, s]));
 
-    insertUser.run(ADMIN_EMAIL, null, hashPassword(ADMIN_PASSWORD), 'admin', now, now);
-    for (const student of STUDENTS.slice(0, 4)) {
-      insertUser.run(student[2], student[0], hashPassword(DEMO_PASSWORD), 'student', now, now);
-    }
-
-    SEED_POSTS.forEach((p, index) => {
-      const [studentId, type, item, category, description, location, occurredAt, image, status] = p;
-      const user = db.prepare('SELECT id FROM users WHERE student_id = ?').get(studentId);
-      const createdAt = new Date(Date.now() - (SEED_POSTS.length - index) * 3600 * 1000).toISOString();
-      const info = insertPost.run(user.id, type, item, category, description, location, occurredAt, status, index >= 6 ? 0 : 1, createdAt);
-      insertImage.run(info.lastInsertRowid, image);
+  const users = [
+    {
+      _id: 1, email: ADMIN_EMAIL, student_id: null, password_hash: hashPassword(ADMIN_PASSWORD),
+      role: 'admin', verified_at: now, created_at: now,
+      totp_secret: null, totp_enabled: false, totp_last_token: null,
+    },
+  ];
+  for (const [studentId, , email] of STUDENTS.slice(0, 4)) {
+    users.push({
+      _id: users.length + 1, email, student_id: studentId, password_hash: hashPassword(DEMO_PASSWORD),
+      role: 'student', verified_at: now, created_at: now,
+      totp_secret: null, totp_enabled: false, totp_last_token: null,
     });
+  }
+  await db.collection('users').insertMany(users);
 
-    const maria = db.prepare('SELECT id FROM users WHERE student_id = ?').get('2024-00102');
-    const juan = db.prepare('SELECT id FROM users WHERE student_id = ?').get('2024-00101');
-    const walletPost = db.prepare("SELECT id FROM posts WHERE item_name LIKE 'Brown Leather Wallet%'").get();
-    const conv = db.prepare('INSERT INTO conversations (post_id, owner_id, other_id, created_at) VALUES (?, ?, ?, ?)').run(walletPost.id, maria.id, juan.id, now);
-    db.prepare('INSERT INTO messages (conversation_id, sender_id, body, created_at) VALUES (?, ?, ?, ?)')
-      .run(conv.lastInsertRowid, juan.id, 'Hi! I think that is my wallet, the ID inside says Maria Santos. Can I pick it up at the Student Center?', new Date(Date.now() - 5400 * 1000).toISOString());
-    db.prepare('INSERT INTO messages (conversation_id, sender_id, body, created_at) VALUES (?, ?, ?, ?)')
-      .run(conv.lastInsertRowid, maria.id, 'Yes, it is with me now. I am at the Student Center until 5 PM today.', new Date(Date.now() - 4800 * 1000).toISOString());
+  const userByStudentId = new Map(users.filter((u) => u.student_id).map((u) => [u.student_id, u]));
+
+  const posts = SEED_POSTS.map((p, index) => {
+    const [studentId, type, item_name, category, description, location, occurred_at, image, status] = p;
+    const user = userByStudentId.get(studentId);
+    const student = byStudentId.get(studentId);
+    return {
+      _id: index + 1,
+      user_id: user._id,
+      type,
+      item_name,
+      category,
+      description,
+      location,
+      occurred_at,
+      status,
+      admin_seen: index >= 6 ? 0 : 1,
+      created_at: new Date(Date.now() - (SEED_POSTS.length - index) * 3600 * 1000).toISOString(),
+      image,
+      full_name: student.full_name,
+      course: student.course,
+      year_level: student.year_level,
+      block: student.block,
+    };
   });
+  await db.collection('posts').insertMany(posts);
 
-  seedAll();
+  const maria = userByStudentId.get('2024-00102');
+  const juan = userByStudentId.get('2024-00101');
+  const wallet = posts.find((p) => p.item_name === 'Brown Leather Wallet');
+  const messageAt = (secondsAgo) => new Date(Date.now() - secondsAgo * 1000).toISOString();
+  const messages = [
+    {
+      _id: 1, conversation_id: 1, sender_id: juan._id,
+      body: 'Hi! I think that is my wallet, the ID inside says Maria Santos. Can I pick it up at the Student Center?',
+      created_at: messageAt(5400), read_at: null, deleted_at: null, full_name: byStudentId.get(juan.student_id).full_name,
+    },
+    {
+      _id: 2, conversation_id: 1, sender_id: maria._id,
+      body: 'Yes, it is with me now. I am at the Student Center until 5 PM today.',
+      created_at: messageAt(4800), read_at: null, deleted_at: null, full_name: byStudentId.get(maria.student_id).full_name,
+    },
+  ];
+  await db.collection('conversations').insertOne({
+    _id: 1, post_id: wallet._id, owner_id: maria._id, other_id: juan._id, created_at: now,
+    last_body: messages[1].body, last_at: messages[1].created_at,
+  });
+  await db.collection('messages').insertMany(messages);
+
+  await db.collection('counters').insertMany([
+    { _id: 'users', seq: users.length },
+    { _id: 'posts', seq: posts.length },
+    { _id: 'conversations', seq: 1 },
+    { _id: 'messages', seq: messages.length },
+    { _id: 'codes', seq: 0 },
+    { _id: 'auth_events', seq: 0 },
+    { _id: 'mail_outbox', seq: 0 },
+  ]);
+
+  await db.collection('users').createIndex({ email: 1 }, { unique: true });
+  await db.collection('students').createIndex({ email: 1 }, { unique: true });
+  await db.collection('messages').createIndex({ conversation_id: 1, _id: 1 });
+  return true;
 }
 
-seed();
-
-module.exports = { db, hashPassword, checkPassword, DEMO_PASSWORD };
+module.exports = {
+  connect, close, getDb, nextId, authorSnapshot, withId, seedDatabase,
+  hashPassword, checkPassword, DEMO_PASSWORD, STUDENTS, SEED_POSTS,
+};

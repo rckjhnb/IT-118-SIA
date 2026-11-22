@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
-const { db } = require('./db');
+const { getDb, nextId, authorSnapshot, withId } = require('./db');
 const { UPLOAD_DIR, CATEGORIES, LOCATIONS, requireAuth } = require('./shared');
 
 const router = express.Router();
@@ -26,32 +26,23 @@ const upload = multer({
   },
 });
 
-// Public fields only: no email addresses.
-const POST_SELECT = `
-  SELECT p.*, s.full_name, s.course, s.year_level, s.block,
-         (SELECT filename FROM post_images WHERE post_id = p.id ORDER BY id LIMIT 1) AS image
-  FROM posts p
-  JOIN users u ON u.id = p.user_id
-  LEFT JOIN students s ON s.student_id = u.student_id
-`;
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-function listPosts(f) {
-  const where = [];
-  const params = [];
-  if (f.type !== 'all') { where.push('p.type = ?'); params.push(f.type); }
-  if (f.status === 'open') where.push("p.status = 'open'");
-  if (f.category) { where.push('p.category = ?'); params.push(f.category); }
-  if (f.location) { where.push('p.location = ?'); params.push(f.location); }
+async function listPosts(f) {
+  const query = {};
+  if (f.type !== 'all') query.type = f.type;
+  if (f.status === 'open') query.status = 'open';
+  if (f.category) query.category = f.category;
+  if (f.location) query.location = f.location;
   if (f.q) {
-    const like = '%' + f.q.replace(/[\\%_]/g, '\\$&') + '%';
-    where.push("(p.item_name LIKE ? ESCAPE '\\' OR p.description LIKE ? ESCAPE '\\')");
-    params.push(like, like);
+    const pattern = new RegExp(escapeRegex(f.q), 'i');
+    query.$or = [{ item_name: pattern }, { description: pattern }];
   }
-  const sql = POST_SELECT + (where.length ? ' WHERE ' + where.join(' AND ') : '') + ' ORDER BY p.created_at DESC LIMIT 100';
-  return db.prepare(sql).all(...params);
+  const rows = await getDb().collection('posts').find(query).sort({ _id: -1 }).limit(100).toArray();
+  return rows.map(withId);
 }
 
-router.get('/posts', (req, res) => {
+router.get('/posts', async (req, res) => {
   const type = String(req.query.type || 'all');
   const filters = {
     type: ['lost', 'found'].includes(type) ? type : 'all',
@@ -61,11 +52,11 @@ router.get('/posts', (req, res) => {
     q: String(req.query.q || '').trim().slice(0, 100),
   };
   res.json({
-    posts: listPosts(filters),
+    posts: await listPosts(filters),
   });
 });
 
-router.post('/posts', requireAuth, upload.single('photo'), (req, res) => {
+router.post('/posts', requireAuth, upload.single('photo'), async (req, res) => {
   const body = req.body || {};
   const v = {
     type: body.type === 'found' ? 'found' : 'lost',
@@ -88,17 +79,24 @@ router.post('/posts', requireAuth, upload.single('photo'), (req, res) => {
   if (!LOCATIONS.includes(v.location)) return fail('Pick a campus location.');
   if (!v.occurred_at || Number.isNaN(new Date(v.occurred_at).getTime())) return fail('Enter when you lost or found it.');
 
-  const info = db.prepare(`
-    INSERT INTO posts (user_id, type, item_name, category, description, location, occurred_at, status, admin_seen, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'open', 0, ?)
-  `).run(req.session.user.id, v.type, v.item_name, v.category, v.description, v.location, v.occurred_at, new Date().toISOString());
-
-  if (req.file) db.prepare('INSERT INTO post_images (post_id, filename) VALUES (?, ?)').run(info.lastInsertRowid, req.file.filename);
-  res.status(201).json({ ok: true, id: info.lastInsertRowid });
+  const author = await authorSnapshot(req.session.user.id);
+  const id = await nextId('posts');
+  await getDb().collection('posts').insertOne({
+    _id: id,
+    user_id: req.session.user.id,
+    ...v,
+    status: 'open',
+    admin_seen: false,
+    created_at: new Date().toISOString(),
+    image: req.file ? req.file.filename : null,
+    ...author,
+  });
+  res.status(201).json({ ok: true, id });
 });
 
-router.get('/posts/:id', (req, res) => {
-  const post = db.prepare(POST_SELECT + ' WHERE p.id = ?').get(Number(req.params.id));
+router.get('/posts/:id', async (req, res) => {
+  const db = getDb();
+  const post = await db.collection('posts').findOne({ _id: Number(req.params.id) });
   if (!post) return res.status(404).json({ error: 'Post not found.' });
 
   const me = req.session.user || null;
@@ -108,45 +106,55 @@ router.get('/posts/:id', (req, res) => {
   // Only the poster sees who has written about an item.
   let conversations = [];
   if (isOwner) {
-    conversations = db.prepare(`
-      SELECT c.id, COALESCE(s.full_name, u.email) AS name,
-             (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count
-      FROM conversations c
-      JOIN users u ON u.id = c.other_id
-      LEFT JOIN students s ON s.student_id = u.student_id
-      WHERE c.post_id = ? ORDER BY c.created_at
-    `).all(post.id);
+    const rows = await db.collection('conversations').find({ post_id: post._id }).sort({ _id: 1 }).toArray();
+    conversations = await Promise.all(rows.map(async (c) => {
+      const other = await db.collection('users').findOne({ _id: c.other_id });
+      const student = other && other.student_id
+        ? await db.collection('students').findOne({ _id: other.student_id, email: other.email })
+        : null;
+      return {
+        id: c._id,
+        name: student ? student.full_name : (other ? other.email : 'Unknown'),
+        message_count: await db.collection('messages').countDocuments({ conversation_id: c._id }),
+      };
+    }));
   }
-  res.json({ post, conversations, isOwner, canContact: Boolean(me && !isOwner), canResolve: isOwner || isAdmin });
+  res.json({ post: withId(post), conversations, isOwner, canContact: Boolean(me && !isOwner), canResolve: isOwner || isAdmin });
 });
 
-router.post('/posts/:id/resolve', requireAuth, (req, res) => {
-  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(Number(req.params.id));
+router.post('/posts/:id/resolve', requireAuth, async (req, res) => {
+  const db = getDb();
+  const post = await db.collection('posts').findOne({ _id: Number(req.params.id) });
   if (!post) return res.status(404).json({ error: 'Post not found.' });
   if (post.user_id !== req.session.user.id && req.session.user.role !== 'admin') {
     return res.status(403).json({ error: 'Only the poster or an admin can close this post.' });
   }
-  db.prepare("UPDATE posts SET status = 'resolved' WHERE id = ?").run(post.id);
+  await db.collection('posts').updateOne({ _id: post._id }, { $set: { status: 'resolved' } });
   res.json({ ok: true });
 });
 
-router.post('/posts/:id/contact', requireAuth, (req, res) => {
-  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(Number(req.params.id));
+router.post('/posts/:id/contact', requireAuth, async (req, res) => {
+  const db = getDb();
+  const post = await db.collection('posts').findOne({ _id: Number(req.params.id) });
   if (!post) return res.status(404).json({ error: 'Post not found.' });
   if (post.user_id === req.session.user.id) return res.status(400).json({ error: 'That is your own post.' });
 
-  let conv = db.prepare('SELECT * FROM conversations WHERE post_id = ? AND owner_id = ? AND other_id = ?')
-    .get(post.id, post.user_id, req.session.user.id);
+  let conv = await db.collection('conversations')
+    .findOne({ post_id: post._id, owner_id: post.user_id, other_id: req.session.user.id });
   if (!conv) {
-    const id = db.prepare('INSERT INTO conversations (post_id, owner_id, other_id, created_at) VALUES (?, ?, ?, ?)')
-      .run(post.id, post.user_id, req.session.user.id, new Date().toISOString()).lastInsertRowid;
-    conv = { id };
+    const id = await nextId('conversations');
+    await db.collection('conversations').insertOne({
+      _id: id, post_id: post._id, owner_id: post.user_id, other_id: req.session.user.id,
+      created_at: new Date().toISOString(), last_body: null, last_at: null,
+    });
+    conv = { _id: id };
   }
-  res.json({ ok: true, conversationId: conv.id });
+  res.json({ ok: true, conversationId: conv._id });
 });
 
-router.get('/my-posts', requireAuth, (req, res) => {
-  res.json({ posts: db.prepare(POST_SELECT + ' WHERE p.user_id = ? ORDER BY p.created_at DESC').all(req.session.user.id) });
+router.get('/my-posts', requireAuth, async (req, res) => {
+  const rows = await getDb().collection('posts').find({ user_id: req.session.user.id }).sort({ _id: -1 }).toArray();
+  res.json({ posts: rows.map(withId) });
 });
 
-module.exports = { router, POST_SELECT };
+module.exports = { router };

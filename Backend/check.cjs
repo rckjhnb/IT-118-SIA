@@ -6,12 +6,12 @@ const fs = require('fs');
 const { authenticator } = require('otplib');
 
 const stamp = Date.now();
-process.env.SIA_DB = process.env.SIA_DB || path.join(os.tmpdir(), 'foundit-check-' + stamp + '.db');
+process.env.MONGODB_DB = process.env.MONGODB_DB || 'foundit_check_' + stamp;
 process.env.SIA_UPLOADS = process.env.SIA_UPLOADS || path.join(os.tmpdir(), 'foundit-check-uploads-' + stamp);
 process.env.NODE_ENV = 'development';
 
 const app = require('./server.js');
-const { db } = require('./db');
+const { getDb, close } = require('./db');
 
 let passed = 0;
 const failures = [];
@@ -46,14 +46,8 @@ function agent(base) {
 
 const json = (body) => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
-function latestCode(email, purpose) {
-  return db.prepare(`
-    SELECT c.code FROM codes c JOIN users u ON u.id = c.user_id
-    WHERE u.email = ? AND c.purpose = ? ORDER BY c.id DESC LIMIT 1
-  `).get(email, purpose);
-}
-
 async function main() {
+  await app.ready;
   const server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const base = 'http://127.0.0.1:' + server.address().port;
@@ -75,23 +69,11 @@ async function main() {
     r = await guest('/api/signup', json({ email: 'paolo.ramos26@gmail.com', student_id: '2026-00401', password: 'Password123', confirm_password: 'Password123' }));
     check('rejects non-BU email', r.status === 400, 'status ' + r.status);
 
-    r = await guest('/api/signup', json({ email: 'paolo.ramos26@bicol-u.edu.ph', student_id: '2023-00233', password: 'Password123', confirm_password: 'Password123' }));
-    check('rejects mismatched student id', r.status === 400, 'status ' + r.status);
-
-    r = await guest('/api/signup', json({ email: 'nobody.here99@bicol-u.edu.ph', student_id: '2026-00401', password: 'Password123', confirm_password: 'Password123' }));
-    check('rejects email not in roster', r.status === 400, 'status ' + r.status);
+    r = await owner('/api/signup', json({ email: 'nobody.here99@bicol-u.edu.ph', student_id: '2026-00401', password: 'Password123', confirm_password: 'Password123' }));
+    check('signup accepts an email outside the roster', r.status === 200 && r.data.ok === true && r.data.user.email === 'nobody.here99@bicol-u.edu.ph' && r.data.user.full_name === null, 'status ' + r.status + ' ' + JSON.stringify(r.data.user));
 
     r = await student('/api/signup', json({ email: 'paolo.ramos26@bicol-u.edu.ph', student_id: '2026-00401', password: 'Password123', confirm_password: 'Password123' }));
-    check('signup accepts roster match', r.status === 200 && r.data.ok === true, 'status ' + r.status);
-
-    r = await student('/api/verify', json({ email: 'paolo.ramos26@bicol-u.edu.ph', code: '000000' }));
-    check('wrong verification code rejected', r.status === 400, 'status ' + r.status);
-
-    const verifyCode = latestCode('paolo.ramos26@bicol-u.edu.ph', 'verify');
-    check('verification code generated', Boolean(verifyCode && /^\d{6}$/.test(verifyCode.code)), 'code ' + (verifyCode && verifyCode.code));
-
-    r = await student('/api/verify', json({ email: 'paolo.ramos26@bicol-u.edu.ph', code: verifyCode ? verifyCode.code : '' }));
-    check('correct code verifies and signs in', r.status === 200 && r.data.user.full_name === 'Paolo Miguel Ramos', 'status ' + r.status + ' user ' + (r.data.user && r.data.user.full_name));
+    check('signup accepts roster match and logs in', r.status === 200 && r.data.ok === true && r.data.user.full_name === 'Paolo Miguel Ramos', 'status ' + r.status);
 
     r = await student('/api/me');
     check('session identifies the student', r.status === 200 && r.data.user && r.data.user.student_id === '2026-00401', JSON.stringify(r.data.user));
@@ -137,7 +119,8 @@ async function main() {
     r = await student('/api/conversations/' + conversationId + '/feed?after=0');
     check('polling feed returns the message', r.status === 200 && r.data.messages.length === 1 && r.data.messages[0].body.includes('sticker of a cat'), 'messages ' + (r.data && r.data.messages && r.data.messages.length));
 
-    const messageId = db.prepare('SELECT id FROM messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1').get(conversationId).id;
+    const messageId = (await getDb().collection('messages')
+      .find({ conversation_id: conversationId }).sort({ _id: -1 }).limit(1).next())._id;
 
     r = await owner('/api/login', json({ email: 'paolo.ramos26@bicol-u.edu.ph', password: 'Password123' }));
     check('post owner can log in', r.status === 200, 'status ' + r.status);
@@ -149,7 +132,7 @@ async function main() {
     r = await student('/api/conversations/' + conversationId + '/messages/' + messageId, { method: 'DELETE' });
     check('sender deletes a message', r.status === 200 && r.data.ok === true, 'status ' + r.status);
 
-    const tombstone = db.prepare('SELECT body, deleted_at FROM messages WHERE id = ?').get(messageId);
+    const tombstone = await getDb().collection('messages').findOne({ _id: messageId });
     check('delete is a tombstone, not a row delete', Boolean(tombstone && tombstone.deleted_at && tombstone.body.includes('sticker')), JSON.stringify(tombstone));
 
     r = await student('/api/conversations/' + conversationId + '/feed?after=0');
@@ -207,7 +190,7 @@ async function main() {
 
     r = await admin('/api/admin/posts/' + postId + '/resolve', { method: 'POST' });
     check('admin resolves a post', r.status === 200 && r.data.ok === true, 'status ' + r.status);
-    check('post marked resolved', db.prepare('SELECT status FROM posts WHERE id = ?').get(postId).status === 'resolved', 'not resolved');
+    check('post marked resolved', (await getDb().collection('posts').findOne({ _id: postId })).status === 'resolved', 'not resolved');
 
     r = await admin('/api/conversations/' + conversationId);
     check('admin cannot read student-to-student conversations', r.status === 404, 'status ' + r.status);
@@ -217,30 +200,16 @@ async function main() {
     r = await guest('/api/nope');
     check('unknown API route 404s as JSON', r.status === 404 && r.data.error === 'Route not found.', 'status ' + r.status);
 
-    r = await guest('/api/forgot', json({ email: 'paolo.ramos26@bicol-u.edu.ph' }));
-    check('forgot password issues a reset code', r.status === 200 && r.data.ok === true, 'status ' + r.status);
-
-    const resetCode = latestCode('paolo.ramos26@bicol-u.edu.ph', 'reset');
-    check('reset code generated', Boolean(resetCode && /^\d{6}$/.test(resetCode.code)), 'code ' + (resetCode && resetCode.code));
-
-    r = await guest('/api/reset', json({ email: 'paolo.ramos26@bicol-u.edu.ph', code: resetCode ? resetCode.code : '', password: 'NewPassword456', confirm_password: 'NewPassword456' }));
-    check('reset accepted', r.status === 200 && r.data.ok === true, 'status ' + r.status);
-
-    r = await guest('/api/login', json({ email: 'paolo.ramos26@bicol-u.edu.ph', password: 'NewPassword456' }));
-    check('login works after reset', r.status === 200, 'status ' + r.status);
-
-    r = await guest('/api/login', json({ email: 'paolo.ramos26@bicol-u.edu.ph', password: 'Password123' }));
-    check('old password no longer works', r.status === 401, 'status ' + r.status);
-
     r = await guest('/');
     check('static frontend is served', r.status === 200, 'status ' + r.status);
   } finally {
     server.close();
     try {
       fs.rmSync(process.env.SIA_UPLOADS, { recursive: true, force: true });
-      for (const suffix of ['', '-wal', '-shm']) fs.rmSync(process.env.SIA_DB + suffix, { force: true });
+      if (process.env.MONGODB_DB.startsWith('foundit_check_')) await getDb().dropDatabase();
+      await close();
     } catch (e) {
-      // Windows can still hold the SQLite file; the temp folder is disposable either way.
+      // The throwaway database is disposable either way.
     }
   }
 

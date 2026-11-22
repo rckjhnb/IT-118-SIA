@@ -15,18 +15,18 @@ const selectClass = 'w-full [&>button]:w-full';
 // Flip to true to restore the original violet hero panel.
 const HERO_CARD = false;
 const selectLook = {
-  surfaceColor: '#ffffff',
-  highlightColor: '#f5f2fc',
-  accentColor: '#5b20ff',
-  textColor: '#1f1f28',
+  surfaceColor: '#f4e9de',
+  highlightColor: '#dfcbb6',
+  accentColor: '#4d6080',
+  textColor: '#2a3547',
   size: 'lg' as const,
   menuWidth: 190,
 };
 const selectLookDark = {
-  surfaceColor: '#191527',
-  highlightColor: '#241e3a',
-  accentColor: '#a78bfa',
-  textColor: '#f5f2ff',
+  surfaceColor: '#1d2633',
+  highlightColor: '#26303f',
+  accentColor: '#9db1cc',
+  textColor: '#f6eee6',
   size: 'lg' as const,
   menuWidth: 190,
 };
@@ -52,14 +52,14 @@ function PostCard({ post }: { post: Post }) {
     >
       <BorderGlow
         className="h-full"
-        backgroundColor={theme === 'dark' ? '#191527' : '#ffffff'}
-        borderRadius={16}
-        glowColor="260 100 66"
+        backgroundColor={theme === 'dark' ? '#1d2633' : '#f4e9de'}
+        borderRadius={20}
+        glowColor="24 90 56"
         glowRadius={40}
         glowIntensity={0.6}
         edgeSensitivity={30}
         coneSpread={20}
-        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        colors={['#f4721e', '#4d6080', '#f7c9a6']}
       >
         <div className="relative aspect-[4/3] bg-sunken">
           {post.image ? (
@@ -71,7 +71,7 @@ function PostCard({ post }: { post: Post }) {
             <TypeBadge type={post.type} />
           </div>
         </div>
-        <div className="flex flex-1 flex-col gap-1 p-4">
+        <div className="flex flex-1 flex-col gap-1 p-5">
           <h2 className="truncate text-lg font-semibold text-body">{post.item_name}</h2>
           <p className="line-clamp-2 text-sm text-muted">{post.description}</p>
           <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-xs text-muted">
@@ -91,7 +91,7 @@ export function Home() {
   const { user, config } = useAuth();
   const { theme } = useTheme();
   const look = theme === 'dark' ? selectLookDark : selectLook;
-  const ink = HERO_CARD || theme === 'dark' ? '#ffffff' : '#1f1f28';
+  const ink = HERO_CARD || theme === 'dark' ? '#f6eee6' : '#2a3547';
   const [params, setParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +138,7 @@ export function Home() {
   return (
     <div>
       <AnimatedContent distance={36} duration={0.7} threshold={0.05}>
-        <section className={`mb-8 ${HERO_CARD ? 'overflow-hidden rounded-3xl bg-orchid-deep px-5 py-8 text-white shadow-[0_18px_44px_-22px_rgba(91,32,255,0.65)] sm:px-10 sm:py-12' : ''}`}>
+        <section className={`mb-8 ${HERO_CARD ? 'overflow-hidden rounded-3xl bg-orchid-deep px-5 py-8 text-white shadow-[0_18px_44px_-22px_rgba(244,114,30,0.55)] sm:px-10 sm:py-12' : ''}`}>
           <h1 className="max-w-2xl">
             <StrokeText
               text={'Lost something on campus?\nFound something?'}
@@ -163,7 +163,7 @@ export function Home() {
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to={user ? '/post/new' : '/login?next=/post/new'}
-              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold no-underline shadow-sm transition ${HERO_CARD ? 'bg-white text-[#5b20ff] hover:bg-accent/40' : 'bg-[#5b20ff] text-white hover:bg-[#7a46ff]'}`}
+              className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold no-underline shadow-sm transition ${HERO_CARD ? 'bg-paper text-bu hover:bg-accent/40' : 'bg-gold text-bu-dark hover:bg-gold-light'}`}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
               Post an item
@@ -247,7 +247,7 @@ export function Home() {
           <p className="mt-1 text-muted">Try clearing the search or choosing another category.</p>
         </div>
       ) : (
-        <AnimatedContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" distance={44} duration={0.7} stagger={0.07} threshold={0.05}>
+        <AnimatedContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" distance={44} duration={0.7} stagger={0.07} threshold={0.05}>
           {posts.map((p) => (
             <PostCard key={p.id} post={p} />
           ))}

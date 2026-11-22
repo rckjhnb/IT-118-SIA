@@ -157,7 +157,7 @@ export function Thread() {
               <div
                 key={m.id}
                 className={`max-w-[min(86%,34rem)] rounded-2xl px-4 py-2.5 ${
-                  mine ? 'self-end bg-[#5b20ff] text-white' : 'self-start border border-line bg-paper text-heading'
+                  mine ? 'self-end bg-bu text-white' : 'self-start border border-line bg-paper text-heading'
                 }`}
               >
                 <p className={`whitespace-pre-wrap text-[15px] ${m.deleted_at ? (mine ? 'italic text-white/70' : 'italic text-muted') : ''}`}>
@@ -203,7 +203,7 @@ export function Thread() {
           <button
             type="submit"
             disabled={busy}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-bu px-5 py-2.5 text-sm font-semibold text-white hover:bg-gold-light disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gold px-5 py-2.5 text-sm font-semibold text-bu-dark hover:bg-gold-light disabled:opacity-60"
           >
             <Send className="h-4 w-4" aria-hidden="true" />
             Send

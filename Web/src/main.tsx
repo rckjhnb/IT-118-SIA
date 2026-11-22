@@ -15,9 +15,6 @@ import { Messages } from './pages/Messages';
 import { Thread } from './pages/Thread';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
-import { Verify } from './pages/Verify';
-import { Forgot } from './pages/Forgot';
-import { Reset } from './pages/Reset';
 import { About } from './pages/About';
 import { Outbox } from './pages/Outbox';
 import { NotFound } from './pages/NotFound';
@@ -109,9 +106,6 @@ createRoot(document.getElementById('root')!).render(
                     />
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
-                    <Route path="/verify" element={<Verify />} />
-                    <Route path="/forgot" element={<Forgot />} />
-                    <Route path="/reset" element={<Reset />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/outbox" element={<Outbox />} />
                     <Route path="*" element={<NotFound />} />

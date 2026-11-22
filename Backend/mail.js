@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const { db } = require('./db');
+const { getDb, nextId } = require('./db');
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const smtp = SMTP_HOST
@@ -14,8 +14,10 @@ const smtp = SMTP_HOST
 // Every message is recorded in mail_outbox so the flow works with no SMTP account.
 // shortcut: no retry queue; if Gmail rejects a message we only log it, upgrade when real students depend on it.
 async function sendMail(to, subject, body) {
-  const info = db.prepare('INSERT INTO mail_outbox (to_email, subject, body, created_at) VALUES (?, ?, ?, ?)')
-    .run(to, subject, body, new Date().toISOString());
+  const id = await nextId('mail_outbox');
+  await getDb().collection('mail_outbox').insertOne({
+    _id: id, to_email: to, subject, body, created_at: new Date().toISOString(),
+  });
 
   if (!smtp) return;
 
@@ -27,7 +29,7 @@ async function sendMail(to, subject, body) {
       text: body,
     });
   } catch (err) {
-    console.error('[mail] SMTP send failed for outbox #' + info.lastInsertRowid + ':', err.message);
+    console.error('[mail] SMTP send failed for outbox #' + id + ':', err.message);
   }
 }
 

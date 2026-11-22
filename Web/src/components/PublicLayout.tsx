@@ -13,9 +13,7 @@ function RouterLink({ href, ...rest }: { href?: string } & Omit<ComponentProps<t
   return <Link to={href ?? '/'} {...rest} />;
 }
 
-const AUTH_PAGES = ['/welcome', '/login', '/signup', '/verify', '/forgot', '/reset'];
-const authButtonClass =
-  'inline-flex items-center rounded-full border border-line bg-paper px-4 py-2.5 text-sm font-medium text-body no-underline transition hover:bg-sunken';
+const AUTH_PAGES = ['/welcome', '/login', '/signup'];
 
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { user, unread, setUser } = useAuth();
@@ -60,8 +58,8 @@ export function PublicLayout({ children }: { children: ReactNode }) {
     >
       <div className="relative z-10 flex min-h-screen flex-col">
         {!isAuth && (
-        <header className="px-3 pb-1 pt-6 sm:px-5 sm:pt-7">
-          <div className="flex w-full flex-wrap items-center gap-3">
+        <header className="mx-auto w-[calc(100%-2.5rem)] max-w-[1640px] pb-1 pt-6 sm:w-[86%] sm:pt-7">
+          <div className="flex w-full items-center gap-2 rounded-[22px] border border-line/70 bg-paper/70 p-2 shadow-[0_18px_40px_-26px_rgba(31,42,61,0.55)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2836]/90 dark:shadow-[0_22px_44px_-20px_rgba(0,0,0,0.8)]">
             <PillNav
               logo="/logo-main.png"
               logoAlt="FoundIT home"
@@ -72,12 +70,14 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               theme={theme === 'dark' ? 'dark' : 'light'}
               layout="split"
               size="lg"
-              surface="solid"
+              surface="none"
+              itemStyle="plain"
+              indicator="dot"
               collapse="auto"
               intro
               ariaLabel="Main navigation"
               className="min-w-0 flex-1"
-              style={{ '--pn-mark': '46px' } as CSSProperties}
+              style={{ '--pn-mark': '32px', '--pn-gap': '24px', '--pn-x': '14px', '--pn-font': '15px' } as CSSProperties}
             />
 
             <div className="hidden flex-none items-center gap-2 lg:flex">
@@ -85,7 +85,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={toggleTheme}
                 aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                className="grid h-10 w-10 flex-none place-items-center rounded-full border border-line bg-paper text-body transition hover:bg-sunken"
+                className="grid h-9 w-9 flex-none place-items-center rounded-full text-body transition hover:bg-sunken"
               >
                 {theme === 'dark' ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
               </button>
@@ -95,7 +95,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                     <button
                       type="button"
                       onClick={() => setMenuOpen((v) => !v)}
-                      className="inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3.5 py-2 text-sm font-medium text-body hover:bg-sunken"
+                      className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-body transition hover:bg-sunken"
                       aria-expanded={menuOpen}
                     >
                       <UserCircle className="h-4 w-4" aria-hidden="true" />
@@ -135,10 +135,15 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                 </>
               ) : (
                 <>
-                  <Link to="/login" className={authButtonClass}>
+                  <Link
+                    to="/login"
+                    className={`inline-flex items-center rounded-full px-4 py-2.5 text-sm font-bold no-underline transition ${
+                      theme === 'dark' ? 'bg-heading text-[#141b26] hover:bg-paper' : 'bg-bu text-cream hover:bg-[#3f4f6a]'
+                    }`}
+                  >
                     Log in
                   </Link>
-                  <Link to="/signup" className={authButtonClass}>
+                  <Link to="/signup" className="rounded-full px-3 py-2 text-sm font-medium text-body no-underline transition hover:bg-sunken hover:text-heading">
                     Sign up
                   </Link>
                 </>
@@ -200,11 +205,19 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         </header>
         )}
 
-        <main className={isWelcome ? 'w-full flex-1' : 'w-full flex-1 px-4 py-8 sm:px-6 sm:py-10'}>{children}</main>
+        <main
+          className={
+            isWelcome
+              ? 'mx-auto w-[calc(100%-2.5rem)] max-w-[1640px] flex-1 sm:w-[86%]'
+              : 'mx-auto w-[calc(100%-2.5rem)] max-w-[1640px] flex-1 py-8 sm:w-[86%] sm:py-10'
+          }
+        >
+          {children}
+        </main>
 
         {!isAuth && (
         <footer>
-          <AnimatedContent distance={24} duration={0.6} threshold={0.02} className="flex w-full flex-col items-center justify-between gap-3 px-4 py-5 text-sm text-muted sm:flex-row">
+          <AnimatedContent distance={24} duration={0.6} threshold={0.02} className="mx-auto flex w-[calc(100%-2.5rem)] max-w-[1640px] flex-col items-center justify-between gap-3 py-5 text-sm text-muted sm:w-[86%] sm:flex-row">
             <span className="inline-flex items-center gap-2">
               <img src="/logo-main.png" alt="" className="h-6 w-6" />
               FoundIT · Bicol University Lost &amp; Found

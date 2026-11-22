@@ -20,7 +20,7 @@ export function Login() {
     setBusy(true);
     const fd = new FormData(e.currentTarget);
     try {
-      const r = await api<{ user?: User; needs2fa?: boolean; needsTotpSetup?: boolean; needsVerify?: boolean; email?: string }>(
+      const r = await api<{ user?: User; needs2fa?: boolean; needsTotpSetup?: boolean }>(
         '/login',
         { method: 'POST', body: { email: fd.get('email'), password: fd.get('password') } },
       );
@@ -34,12 +34,7 @@ export function Login() {
         navigate(next.startsWith('/') && !next.startsWith('//') ? next : '/');
       }
     } catch (err) {
-      const e2 = err as ApiError;
-      if (e2.data.needsVerify) {
-        navigate('/verify?email=' + encodeURIComponent(String(e2.data.email || '')));
-        return;
-      }
-      setError(e2.message);
+      setError((err as ApiError).message);
     } finally {
       setBusy(false);
     }
@@ -86,10 +81,6 @@ export function Login() {
           </Button>
         </form>
         <p className="mt-5 text-center text-sm text-muted">
-          <Link to="/forgot" className="text-bu hover:underline">
-            Forgot your password?
-          </Link>{' '}
-          ·{' '}
           <Link to="/signup" className="text-bu hover:underline">
             Create an account
           </Link>

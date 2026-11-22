@@ -11,20 +11,18 @@
     "start": "node Backend/server.js",
     "dev": "node --watch Backend/server.js",
     "check": "node Backend/check.cjs",
+    "seed:mongo": "node Backend/seed-mongo.js",
     "web:dev": "npm --prefix Web run dev",
     "web:build": "npm --prefix Web run build"
   },
   "dependencies": {
-    "better-sqlite3": "^12.0.0",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
+    "mongodb": "^6.22.0",
     "multer": "^2.0.0",
     "nodemailer": "^10.3.1",
     "otplib": "^12.0.1",
     "qrcode": "^1.5.4"
-  },
-  "allowScripts": {
-    "better-sqlite3@12.11.1": true
   }
 }

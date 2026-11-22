@@ -78,7 +78,7 @@ const getDashPattern = (strokeStyle: StrokeTextStyle, dashLength: number, stroke
 
 const StrokeText = ({
   text = DEFAULT_TEXT,
-  strokeColor = '#A78BFA',
+  strokeColor = '#4D6080',
   fillColor = 'currentColor',
   strokeWidth = 1.4,
   drawDuration = 1.6,

@@ -161,7 +161,7 @@ export function AdminLogin() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full rounded-xl bg-[#5b20ff] px-4 py-3 text-sm font-bold text-white shadow-[0_0_40px_rgba(167,139,250,0.35)] transition hover:bg-[#7a46ff] disabled:opacity-60"
+                  className="w-full rounded-xl bg-gold px-4 py-3 text-sm font-bold text-bu-dark shadow-[0_0_40px_rgba(244,114,30,0.35)] transition hover:bg-gold-light disabled:opacity-60"
                 >
                   {busy ? 'Checking…' : 'Continue'}
                 </button>
@@ -224,7 +224,7 @@ export function AdminLogin() {
                 type="button"
                 onClick={() => verify(code)}
                 disabled={busy || code.length !== 6}
-                className="mt-6 w-full rounded-xl bg-[#5b20ff] px-4 py-3 text-sm font-bold text-white shadow-[0_0_40px_rgba(167,139,250,0.35)] transition hover:bg-[#7a46ff] disabled:opacity-40"
+                className="mt-6 w-full rounded-xl bg-gold px-4 py-3 text-sm font-bold text-bu-dark shadow-[0_0_40px_rgba(244,114,30,0.35)] transition hover:bg-gold-light disabled:opacity-40"
               >
                 {busy ? 'Verifying…' : setup ? 'Enable 2FA and log in' : 'Verify and log in'}
               </button>
