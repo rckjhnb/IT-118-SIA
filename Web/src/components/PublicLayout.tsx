@@ -73,6 +73,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               surface="none"
               itemStyle="plain"
               indicator="dot"
+              hoverEffect="none"
               collapse="auto"
               intro
               ariaLabel="Main navigation"
