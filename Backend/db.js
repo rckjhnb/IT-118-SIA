@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const dns = require('dns');
 const { MongoClient } = require('mongodb');
 const { UPLOAD_DIR, ADMIN_EMAIL } = require('./shared');
 
@@ -64,12 +65,23 @@ function copySeedPhotos() {
 let client;
 let database;
 
+// A tunnel/VPN adapter can leave Node's resolver with only 127.0.0.1, which silently breaks
+// mongodb+srv SRV lookups (querySrv ECONNREFUSED). Fall back to public resolvers in that case.
+function ensureDnsServers() {
+  const isLoopback = (server) => server === '127.0.0.1' || server === '::1';
+  if (!dns.getServers().every(isLoopback)) return;
+  const servers = (process.env.DNS_SERVERS || '1.1.1.1,8.8.8.8').split(',').map((s) => s.trim()).filter(Boolean);
+  dns.setServers(servers);
+  console.warn('[db] Node resolver only had loopback DNS; using ' + servers.join(', ') + ' instead.');
+}
+
 async function connect() {
   if (database) return database;
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     throw new Error('MONGODB_URI is not set. Copy .env.example to .env and paste your Atlas connection string.');
   }
+  ensureDnsServers();
   client = new MongoClient(uri, { serverSelectionTimeoutMS: 10000 });
   await client.connect();
   database = client.db(process.env.MONGODB_DB || 'foundit');
